@@ -14,6 +14,11 @@ const CONFIG = {
 };
 const IS_DEMO = false;
 
+function getThemeByDeviceTime(date = new Date()) {
+  const hour = date.getHours();
+  return hour >= 19 || hour < 7 ? "dark" : "light";
+}
+
 // ── Share Utility ──
 async function shareContent({ title, text, url }) {
   const fullUrl = url || window.location.href.split("#")[0];
@@ -39,7 +44,7 @@ async function shareContent({ title, text, url }) {
 }
 
 function ShareBtn({ title, text, url, label="Share", className="" }) {
-  const [status, setStatus] = React.useState("");
+  const [status, setStatus] = useState("");
   const handle = async () => {
     const res = await shareContent({ title, text, url });
     if (res === "shared" || res === "copied") {
@@ -3925,6 +3930,17 @@ function App() {
   const { user, loading } = useAuth();
 
   useEffect(() => { trackVisit(page); }, [page]);
+  useEffect(() => {
+    const applyTheme = () => {
+      const theme = getThemeByDeviceTime();
+      document.documentElement.setAttribute("data-theme", theme);
+      document.body.setAttribute("data-theme", theme);
+    };
+
+    applyTheme();
+    const intervalId = window.setInterval(applyTheme, 60 * 1000);
+    return () => window.clearInterval(intervalId);
+  }, []);
 
   if (loading) return (
     <div className="min-h-screen flex flex-col items-center justify-center gap-8" style={{background:"#0D1B3E"}}>
