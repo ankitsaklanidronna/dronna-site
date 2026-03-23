@@ -21,25 +21,7 @@
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
-html { background: var(--cream); }
-body { font-family: 'Manrope', 'Noto Sans Devanagari', sans-serif; background: var(--cream); color: var(--text); transition: background-color 0.3s ease, color 0.3s ease; }
-
-html[data-theme="dark"] {
-  --navy: #e2e8f0;
-  --navy-light: #cbd5e1;
-  --cream: #07111f;
-  --cream-dark: #0f172a;
-  --text: #e5edf7;
-  --muted: #94a3b8;
-}
-
-html[data-theme="dark"],
-html[data-theme="dark"] body {
-  background:
-    radial-gradient(circle at top, rgba(249, 115, 22, 0.14), transparent 32%),
-    linear-gradient(180deg, #08101d 0%, #111827 100%);
-  color: var(--text);
-}
+body { font-family: 'Manrope', 'Noto Sans Devanagari', sans-serif; background: var(--cream); color: var(--text); }
 
 .devanagari { font-family: 'Noto Sans Devanagari', 'Manrope', sans-serif; }
 .font-headline { font-family: 'Plus Jakarta Sans', sans-serif; }
@@ -136,88 +118,4 @@ label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 14px; c
   background: linear-gradient(90deg, #F97316, #FBBF24, #F97316);
   background-size: 200% 100%;
   animation: barPulse 1.4s ease-in-out infinite alternate;
-}
-
-html[data-theme="dark"] .card,
-html[data-theme="dark"] .stat-card,
-html[data-theme="dark"] .option-card,
-html[data-theme="dark"] input,
-html[data-theme="dark"] select,
-html[data-theme="dark"] textarea,
-html[data-theme="dark"] .bg-white,
-html[data-theme="dark"] [style*="background:#FAFAFA"],
-html[data-theme="dark"] [style*="background: #FAFAFA"],
-html[data-theme="dark"] [style*="background:#F5F5F5"],
-html[data-theme="dark"] [style*="background: #F5F5F5"] {
-  background: rgba(15, 23, 42, 0.92) !important;
-  color: var(--text) !important;
-  border-color: rgba(148, 163, 184, 0.22) !important;
-  box-shadow: 0 12px 36px rgba(2, 6, 23, 0.34) !important;
-}
-
-html[data-theme="dark"] .btn-outline {
-  color: #f8fafc;
-  border-color: rgba(226, 232, 240, 0.36);
-}
-
-html[data-theme="dark"] .btn-outline:hover {
-  background: rgba(15, 23, 42, 0.92);
-}
-
-html[data-theme="dark"] label,
-html[data-theme="dark"] .text-navy,
-html[data-theme="dark"] .text-gray-900,
-html[data-theme="dark"] .text-gray-800,
-html[data-theme="dark"] .text-gray-700,
-html[data-theme="dark"] .text-gray-600,
-html[data-theme="dark"] .text-gray-500,
-html[data-theme="dark"] .text-gray-400,
-html[data-theme="dark"] .text-slate-700,
-html[data-theme="dark"] .text-slate-600 {
-  color: var(--text) !important;
-}
-
-html[data-theme="dark"] .text-slate-500,
-html[data-theme="dark"] .text-gray-300,
-html[data-theme="dark"] .text-gray-400,
-html[data-theme="dark"] .text-gray-500 {
-  color: var(--muted) !important;
-}
-
-html[data-theme="dark"] .border,
-html[data-theme="dark"] .border-b,
-html[data-theme="dark"] .border-t,
-html[data-theme="dark"] .border-gray-100,
-html[data-theme="dark"] .border-gray-200,
-html[data-theme="dark"] .border-dashed {
-  border-color: rgba(148, 163, 184, 0.22) !important;
-}
-
-html[data-theme="dark"] .bg-gray-50,
-html[data-theme="dark"] .bg-gray-100,
-html[data-theme="dark"] .bg-slate-50,
-html[data-theme="dark"] .bg-blue-50,
-html[data-theme="dark"] .bg-red-50,
-html[data-theme="dark"] .bg-green-50,
-html[data-theme="dark"] .bg-yellow-100 {
-  background: rgba(30, 41, 59, 0.82) !important;
-}
-
-html[data-theme="dark"] .shadow-sm,
-html[data-theme="dark"] .shadow-lg,
-html[data-theme="dark"] .shadow-xl {
-  box-shadow: 0 12px 36px rgba(2, 6, 23, 0.34) !important;
-}
-
-html[data-theme="dark"] .option-card:hover,
-html[data-theme="dark"] .option-card.selected {
-  background: rgba(249, 115, 22, 0.12) !important;
-}
-
-html[data-theme="dark"] .option-card.correct {
-  background: rgba(16, 185, 129, 0.14) !important;
-}
-
-html[data-theme="dark"] .option-card.wrong {
-  background: rgba(239, 68, 68, 0.14) !important;
 }
