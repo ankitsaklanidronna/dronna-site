@@ -57,6 +57,149 @@ function ShareBtn({ title, text, url, label="Share", className="" }) {
   );
 }
 
+const CSV_HEADER_ALIASES = {
+  question_text: ["question_text", "question", "questiontext", "ques", "q"],
+  option_a: ["option_a", "optiona", "a", "option1", "option_1"],
+  option_b: ["option_b", "optionb", "b", "option2", "option_2"],
+  option_c: ["option_c", "optionc", "c", "option3", "option_3"],
+  option_d: ["option_d", "optiond", "d", "option4", "option_4"],
+  correct_answer: ["correct_answer", "correctanswer", "answer", "correct_option", "correctoption"],
+  subject: ["subject"],
+  topic: ["topic", "chapter"],
+  difficulty: ["difficulty", "level"],
+  exam_type: ["exam_type", "examtype", "exam"],
+  explanation: ["explanation", "solution", "answer_explanation"]
+};
+
+function normalizeCsvHeader(value = "") {
+  return value.toString().trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function parseCsvText(text) {
+  const rows = [];
+  let row = [];
+  let value = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    const next = text[i + 1];
+
+    if (ch === '"') {
+      if (inQuotes && next === '"') {
+        value += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+
+    if (ch === "," && !inQuotes) {
+      row.push(value);
+      value = "";
+      continue;
+    }
+
+    if ((ch === "\n" || ch === "\r") && !inQuotes) {
+      if (ch === "\r" && next === "\n") i++;
+      row.push(value);
+      if (row.some(cell => cell.trim() !== "")) rows.push(row);
+      row = [];
+      value = "";
+      continue;
+    }
+
+    value += ch;
+  }
+
+  if (value.length > 0 || row.length > 0) {
+    row.push(value);
+    if (row.some(cell => cell.trim() !== "")) rows.push(row);
+  }
+
+  return rows;
+}
+
+function getCsvCell(row, headerMap, key) {
+  const aliases = CSV_HEADER_ALIASES[key] || [key];
+  for (const alias of aliases) {
+    const idx = headerMap[normalizeCsvHeader(alias)];
+    if (idx !== undefined) return (row[idx] || "").trim();
+  }
+  return "";
+}
+
+function normalizeCorrectAnswer(value = "") {
+  const cleaned = value.toString().trim().toUpperCase();
+  if (["A", "B", "C", "D"].includes(cleaned)) return cleaned;
+  if (cleaned === "OPTION A") return "A";
+  if (cleaned === "OPTION B") return "B";
+  if (cleaned === "OPTION C") return "C";
+  if (cleaned === "OPTION D") return "D";
+  return "";
+}
+
+function normalizeDifficulty(value = "") {
+  const cleaned = value.toString().trim().toLowerCase();
+  if (["easy", "medium", "hard"].includes(cleaned)) return cleaned;
+  return "easy";
+}
+
+function normalizeExamType(value = "", fallback = "UKPSC") {
+  const cleaned = value.toString().trim().toUpperCase();
+  if (cleaned === "UKPSC") return "UKPSC";
+  if (cleaned === "UKSSSC") return "UKSSSC";
+  if (cleaned === "BOTH") return "Both";
+  if (cleaned === "COMMON") return "Common";
+  return fallback;
+}
+
+function parseQuestionsCsv(text, fallbackExamType = "UKPSC") {
+  const rows = parseCsvText(text);
+  if (rows.length < 2) {
+    return { ok: false, error: "CSV me header + kam se kam 1 question row honi chahiye" };
+  }
+
+  const headers = rows[0].map(h => h.trim());
+  const headerMap = headers.reduce((acc, header, idx) => {
+    acc[normalizeCsvHeader(header)] = idx;
+    return acc;
+  }, {});
+
+  const required = ["question_text", "option_a", "option_b", "option_c", "option_d", "correct_answer"];
+  const missing = required.filter(key => !CSV_HEADER_ALIASES[key].some(alias => headerMap[normalizeCsvHeader(alias)] !== undefined));
+  if (missing.length > 0) {
+    return { ok: false, error: `Missing CSV headers: ${missing.join(", ")}` };
+  }
+
+  const parsed = [];
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    const payload = {
+      question_text: getCsvCell(row, headerMap, "question_text"),
+      option_a: getCsvCell(row, headerMap, "option_a"),
+      option_b: getCsvCell(row, headerMap, "option_b"),
+      option_c: getCsvCell(row, headerMap, "option_c"),
+      option_d: getCsvCell(row, headerMap, "option_d"),
+      correct_answer: normalizeCorrectAnswer(getCsvCell(row, headerMap, "correct_answer")),
+      subject: getCsvCell(row, headerMap, "subject") || "Mixed",
+      topic: getCsvCell(row, headerMap, "topic"),
+      difficulty: normalizeDifficulty(getCsvCell(row, headerMap, "difficulty")),
+      exam_type: normalizeExamType(getCsvCell(row, headerMap, "exam_type"), fallbackExamType),
+      explanation: getCsvCell(row, headerMap, "explanation")
+    };
+
+    if (!payload.question_text || !payload.option_a || !payload.option_b || !payload.option_c || !payload.option_d || !payload.correct_answer) {
+      return { ok: false, error: `Row ${i + 1} me required data missing hai` };
+    }
+
+    parsed.push(payload);
+  }
+
+  return { ok: true, questions: parsed };
+}
+
 // ═══════════════════════════════════════════════
 // 📚 SAMPLE DATA
 // ═══════════════════════════════════════════════
@@ -159,6 +302,15 @@ const supabase = {
       await fetch(url, { method:"POST", headers: SB_HEADERS, body: JSON.stringify(rows) });
       return { error: null };
     } catch(e) { return { error: e.message }; }
+  },
+  insertManyReturning: async (table, rows) => {
+    try {
+      const url = `${CONFIG.SUPABASE_URL}/rest/v1/${table}?apikey=${CONFIG.SUPABASE_ANON_KEY}`;
+      const r = await fetch(url, { method:"POST", headers: SB_HEADERS, body: JSON.stringify(rows) });
+      const data = await r.json();
+      if (!r.ok) return { data: [], error: data?.message || data?.hint || "Insert failed" };
+      return { data: Array.isArray(data) ? data : [], error: null };
+    } catch(e) { return { data: [], error: e.message }; }
   },
   // Student ka streak aur daily_date fetch karo
   getStudentData: async (email) => {
@@ -2687,6 +2839,9 @@ function AdminSets() {
   const [loading, setLoading] = useState(true);
   const [qSubjectFilter, setQSubjectFilter] = useState("All");
   const [qSearch, setQSearch] = useState("");
+  const [csvQuestions, setCsvQuestions] = useState([]);
+  const [csvFileName, setCsvFileName] = useState("");
+  const [csvMsg, setCsvMsg] = useState("");
 
   useEffect(() => { loadData(); }, []);
 
@@ -2764,6 +2919,96 @@ function AdminSets() {
     } catch(e) { setMsg("❌ Error: " + e.message); }
   };
 
+  const createPracticeSetRecord = async (subjectValue) => {
+    const r1 = await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/practice_sets?apikey=${CONFIG.SUPABASE_ANON_KEY}`, {
+      method: "POST",
+      headers: { ...SB_HEADERS, "Prefer": "return=representation" },
+      body: JSON.stringify({
+        set_name: form.set_name.trim(),
+        subject: subjectValue,
+        exam_type: form.exam_type,
+        time_limit_minutes: Number(form.time_limit_minutes),
+        is_paid: form.is_paid,
+        ...(form.folder_id ? { folder_id: form.folder_id } : {})
+      })
+    });
+    const setData = await r1.json();
+    const setId = Array.isArray(setData) ? setData[0]?.id : setData?.id;
+    return {
+      ok: Boolean(setId),
+      setId,
+      error: setId ? null : (setData?.message || "Set could not be saved")
+    };
+  };
+
+  const handleCsvUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setCsvMsg("WAIT: CSV read ho rahi hai...");
+    setCsvFileName(file.name);
+
+    try {
+      const text = await file.text();
+      const result = parseQuestionsCsv(text, form.exam_type);
+      if (!result.ok) {
+        setCsvQuestions([]);
+        setCsvMsg(`ERR: ${result.error}`);
+        return;
+      }
+      setCsvQuestions(result.questions);
+      setCsvMsg(`OK: ${result.questions.length} questions ready hain`);
+    } catch (e) {
+      setCsvQuestions([]);
+      setCsvMsg(`ERR: CSV read nahi hui: ${e.message}`);
+    } finally {
+      event.target.value = "";
+    }
+  };
+
+  const saveSetFromCsv = async () => {
+    if (!form.set_name.trim()) { setMsg("ERR: Set name required hai"); return; }
+    if (csvQuestions.length === 0) { setMsg("ERR: Pehle CSV upload karo"); return; }
+
+    setMsg("WAIT: CSV questions upload ho rahe hain aur set ban raha hai...");
+    try {
+      const csvBreakdown = csvQuestions.reduce((acc, q) => {
+        const sub = q.subject || "Mixed";
+        acc[sub] = (acc[sub] || 0) + 1;
+        return acc;
+      }, {});
+      const csvSubjectKeys = Object.keys(csvBreakdown);
+      const autoSubject = csvSubjectKeys.length === 1 ? csvSubjectKeys[0] : "Mixed";
+
+      const setResult = await createPracticeSetRecord(autoSubject);
+      if (!setResult.ok) { setMsg(`ERR: ${setResult.error}`); return; }
+
+      const insertedQuestions = await supabase.insertManyReturning("questions", csvQuestions);
+      if (insertedQuestions.error || insertedQuestions.data.length === 0) {
+        await supabase.delete("practice_sets", setResult.setId);
+        setMsg(`ERR: CSV questions save nahi hui: ${insertedQuestions.error || "Unknown error"}`);
+        return;
+      }
+
+      const linkRes = await supabase.insertMany("set_questions",
+        insertedQuestions.data.map(q => ({ set_id: setResult.setId, question_id: q.id }))
+      );
+      if (linkRes.error) {
+        setMsg(`ERR: Questions save ho gayi, but set link nahi bana: ${linkRes.error}`);
+        return;
+      }
+
+      setMsg(`OK: "${form.set_name}" CSV se ban gayi. ${insertedQuestions.data.length} questions question bank me bhi add ho gaye.`);
+      setCsvQuestions([]);
+      setCsvFileName("");
+      setCsvMsg("");
+      setForm({ set_name:"", exam_type:"UKPSC", time_limit_minutes:30, is_paid:false, folder_id:"", subject:"Mixed" });
+      setSelectedQ([]);
+      setCreating(false);
+      loadData();
+    } catch(e) { setMsg("ERR: Error: " + e.message); }
+  };
+
   const toggleQ = (qid) => setSelectedQ(prev =>
     prev.includes(qid) ? prev.filter(x => x !== qid) : [...prev, qid]
   );
@@ -2790,7 +3035,7 @@ function AdminSets() {
       </div>
 
       {msg && (
-        <div className={`p-3 rounded-lg text-sm ${msg.startsWith("✅") ? "bg-green-50 text-green-700 border border-green-200" : "bg-red-50 text-red-700 border border-red-200"}`}>
+        <div className={`p-3 rounded-lg text-sm ${(msg.startsWith("✅") || msg.startsWith("OK:") || msg.startsWith("WAIT:")) ? "bg-green-50 text-green-700 border border-green-200" : "bg-red-50 text-red-700 border border-red-200"}`}>
           {msg}
         </div>
       )}
@@ -2847,6 +3092,44 @@ function AdminSets() {
           </div>
 
           {/* ── Row 4: Question Bank ── */}
+          <div className="rounded-2xl border border-dashed border-orange-300 bg-orange-50 p-4 space-y-3">
+            <div>
+              <h4 className="font-black text-sm text-orange-700">CSV Upload se direct paper banao</h4>
+              <p className="text-xs text-orange-700 mt-1">
+                CSV upload karoge to questions question bank me save honge aur isi set ke saath link bhi ho jayenge.
+              </p>
+            </div>
+            <div className="text-xs bg-white border border-orange-200 rounded-xl p-3 overflow-x-auto">
+              <strong>Required headers:</strong> question_text, option_a, option_b, option_c, option_d, correct_answer
+              <br />
+              <strong>Optional:</strong> subject, topic, difficulty, exam_type, explanation
+            </div>
+            <div className="flex flex-col md:flex-row md:items-center gap-3">
+              <input type="file" accept=".csv,text/csv" onChange={handleCsvUpload} className="bg-white" />
+              {csvFileName && (
+                <span className="text-xs font-bold text-orange-700">
+                  {csvFileName} {csvQuestions.length > 0 ? `(${csvQuestions.length} questions)` : ""}
+                </span>
+              )}
+            </div>
+            {csvMsg && (
+              <div className={`text-xs font-bold ${csvMsg.startsWith("OK:") ? "text-green-700" : csvMsg.startsWith("WAIT:") ? "text-orange-700" : "text-red-600"}`}>
+                {csvMsg}
+              </div>
+            )}
+            <button
+              className={`w-full py-3 rounded-xl font-black transition-all ${
+                csvQuestions.length > 0 && form.set_name.trim()
+                  ? "btn-primary"
+                  : "bg-gray-200 text-gray-400 cursor-not-allowed"
+              }`}
+              onClick={saveSetFromCsv}
+              disabled={csvQuestions.length === 0 || !form.set_name.trim()}
+            >
+              CSV upload karke set banao
+            </button>
+          </div>
+
           <div className="bg-gray-50 rounded-2xl border border-gray-200 overflow-hidden">
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b bg-white">
