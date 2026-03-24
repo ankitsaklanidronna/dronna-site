@@ -965,7 +965,14 @@ function LoginPage() {
             access_token: res.access_token
           };
         } catch {
-          userData = { email: form.email, name: form.email.split("@")[0], exam_target:"UKPSC", subscription_plan:"free" };
+          userData = {
+            email: form.email,
+            name: form.email.split("@")[0],
+            exam_target:"UKPSC",
+            subscription_plan:"free",
+            auth_id: res.user?.id,
+            access_token: res.access_token
+          };
         }
         loginAllowed = true;
       } else {
