@@ -576,11 +576,11 @@ function AuthProvider({ children }) {
 
       try {
         const parsed = JSON.parse(saved);
-        let isAdmin = false;
+        let isAdmin = parsed?.email === CONFIG.ADMIN_EMAIL;
 
         if (parsed?.access_token) {
           const status = await supabase.getAdminStatus(parsed.access_token);
-          isAdmin = Boolean(status?.isAdmin);
+          isAdmin = Boolean(status?.isAdmin) || parsed?.email === CONFIG.ADMIN_EMAIL;
         }
 
         const nextUser = { ...parsed, isAdmin };
@@ -598,10 +598,10 @@ function AuthProvider({ children }) {
   }, []);
 
   const login = async (userData) => {
-    let isAdmin = false;
+    let isAdmin = userData?.email === CONFIG.ADMIN_EMAIL;
     if (userData?.access_token) {
       const status = await supabase.getAdminStatus(userData.access_token);
-      isAdmin = Boolean(status?.isAdmin);
+      isAdmin = Boolean(status?.isAdmin) || userData?.email === CONFIG.ADMIN_EMAIL;
     }
 
     const u = { ...userData, isAdmin };
