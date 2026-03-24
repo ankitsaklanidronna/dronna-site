@@ -26,7 +26,7 @@ async function invokeEdgeFunction(name, { accessToken, body = {} } = {}) {
   });
 
   const data = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(data?.error || `Function ${name} failed`);
+  if (!r.ok) throw new Error(data?.error || data?.message || `Function ${name} failed (${r.status})`);
   return data;
 }
 
