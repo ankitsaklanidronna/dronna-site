@@ -1,0 +1,7 @@
+project_id = "dronna-site"
+
+[functions.admin-status]
+verify_jwt = true
+
+[functions.admin-write]
+verify_jwt = true

@@ -13,6 +13,23 @@ const CONFIG = {
   ADMIN_EMAIL: import.meta.env.VITE_ADMIN_EMAIL,
 };
 const IS_DEMO = false;
+const FUNCTIONS_BASE = `${CONFIG.SUPABASE_URL}/functions/v1`;
+
+async function invokeEdgeFunction(name, { accessToken, body = {} } = {}) {
+  const r = await fetch(`${FUNCTIONS_BASE}/${name}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "apikey": CONFIG.SUPABASE_ANON_KEY,
+      ...(accessToken ? { "Authorization": `Bearer ${accessToken}` } : {})
+    },
+    body: JSON.stringify(body)
+  });
+
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data?.error || `Function ${name} failed`);
+  return data;
+}
 
 // ── Share Utility ──
 async function shareContent({ title, text, url }) {
@@ -312,6 +329,23 @@ const supabase = {
       return { data: Array.isArray(data) ? data : [], error: null };
     } catch(e) { return { data: [], error: e.message }; }
   },
+  getAdminStatus: async (accessToken) => {
+    try {
+      return await invokeEdgeFunction("admin-status", { accessToken });
+    } catch (e) {
+      return { isAdmin: false, error: e.message };
+    }
+  },
+  adminWrite: async (action, payload, accessToken) => {
+    try {
+      return await invokeEdgeFunction("admin-write", {
+        accessToken,
+        body: { action, payload }
+      });
+    } catch (e) {
+      return { error: e.message };
+    }
+  },
   // Student ka streak aur daily_date fetch karo
   getStudentData: async (email) => {
     try {
@@ -533,15 +567,47 @@ function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const saved = localStorage.getItem("dronna_user");
-    if (saved) setUser(JSON.parse(saved));
-    setLoading(false);
+    const restoreUser = async () => {
+      const saved = localStorage.getItem("dronna_user");
+      if (!saved) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const parsed = JSON.parse(saved);
+        let isAdmin = false;
+
+        if (parsed?.access_token) {
+          const status = await supabase.getAdminStatus(parsed.access_token);
+          isAdmin = Boolean(status?.isAdmin);
+        }
+
+        const nextUser = { ...parsed, isAdmin };
+        setUser(nextUser);
+        localStorage.setItem("dronna_user", JSON.stringify(nextUser));
+      } catch {
+        localStorage.removeItem("dronna_user");
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    restoreUser();
   }, []);
 
-  const login = (userData) => {
-    const u = { ...userData, isAdmin: userData.email === CONFIG.ADMIN_EMAIL };
+  const login = async (userData) => {
+    let isAdmin = false;
+    if (userData?.access_token) {
+      const status = await supabase.getAdminStatus(userData.access_token);
+      isAdmin = Boolean(status?.isAdmin);
+    }
+
+    const u = { ...userData, isAdmin };
     setUser(u);
     localStorage.setItem("dronna_user", JSON.stringify(u));
+    return u;
   };
   const logout = () => {
     setUser(null);
@@ -912,7 +978,7 @@ function LoginPage() {
 
     // STRICT — sirf tabhi login karo jab explicitly allowed ho
     if (loginAllowed && userData) {
-      login(userData);
+      await login(userData);
       navigate("/dashboard");
     }
 
@@ -1011,7 +1077,7 @@ function SignupPage() {
       });
 
       // Step 4: Login karke dashboard pe bhejo
-      login({
+      await login({
         email: form.email,
         name: form.name,
         exam_target: form.exam_target,
@@ -2634,7 +2700,6 @@ function AdminPanel() {
         <div className="text-4xl mb-3">🔒</div>
         <h2 className="font-black text-xl mb-2">Access Denied</h2>
         <p className="text-gray-500 text-sm mb-4">Sirf admin hi yahan aa sakta hai</p>
-        <p className="text-xs text-gray-400 mb-4">CONFIG mein ADMIN_EMAIL: <strong>{CONFIG.ADMIN_EMAIL}</strong> set karo</p>
         <button className="btn-primary" onClick={() => navigate("/dashboard")}>Dashboard pe jao</button>
       </div>
     </div>
@@ -2689,6 +2754,7 @@ function AdminPanel() {
 }
 
 function AdminQuestions() {
+  const { user } = useAuth();
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({ question_text:"", option_a:"", option_b:"", option_c:"", option_d:"", correct_answer:"A", subject:"सामान्य ज्ञान", topic:"", difficulty:"easy", exam_type:"UKPSC", explanation:"" });
@@ -2711,7 +2777,7 @@ function AdminQuestions() {
   const saveQuestion = async () => {
     if (!form.question_text || !form.option_a || !form.option_b || !form.option_c || !form.option_d) { setMsg("❌ सभी fields भरें"); return; }
     setMsg("⏳ Save ho raha hai...");
-    const { error } = await supabase.insert("questions", form);
+    const { error } = await supabase.adminWrite("create_question", form, user?.access_token);
     if (error) { setMsg("❌ Error: " + error); return; }
     setForm({ question_text:"", option_a:"", option_b:"", option_c:"", option_d:"", correct_answer:"A", subject:"सामान्य ज्ञान", topic:"", difficulty:"easy", exam_type:"UKPSC", explanation:"" });
     setMsg("✅ Question save ho gaya!");
@@ -2720,7 +2786,8 @@ function AdminQuestions() {
   };
 
   const deleteQ = async (id) => {
-    await supabase.delete("questions", id);
+    const { error } = await supabase.adminWrite("delete_question", { id }, user?.access_token);
+    if (error) { setMsg("âŒ Error: " + error); return; }
     await loadQuestions();
   };
 
@@ -2818,6 +2885,7 @@ function AdminQuestions() {
 }
 
 function AdminSets() {
+  const { user } = useAuth();
   const [sets, setSets] = useState([]);
   const [allQ, setAllQ] = useState([]);
   const [folders, setFolders] = useState([]);
@@ -2878,6 +2946,26 @@ function AdminSets() {
     }
     setMsg("⏳ Practice Set बन रहा है...");
     try {
+      const subjectKeysSecure = Object.keys(selectedBreakdown);
+      const autoSubjectSecure = subjectKeysSecure.length === 1 ? subjectKeysSecure[0] : "Mixed";
+      const secureResult = await supabase.adminWrite("create_set_manual", {
+        set: {
+          set_name: form.set_name.trim(),
+          subject: autoSubjectSecure,
+          exam_type: form.exam_type,
+          time_limit_minutes: Number(form.time_limit_minutes),
+          is_paid: form.is_paid,
+          ...(form.folder_id ? { folder_id: form.folder_id } : {})
+        },
+        question_ids: selectedQ
+      }, user?.access_token);
+      if (secureResult.error) { setMsg("ERR: " + secureResult.error); return; }
+      setMsg(`OK: "${form.set_name}" ${selectedQ.length} sawaalon ke saath save ho gayi!`);
+      setForm({ set_name:"", exam_type:"UKPSC", time_limit_minutes:30, is_paid:false, folder_id:"", subject:"Mixed" });
+      setSelectedQ([]);
+      setCreating(false);
+      loadData();
+      return;
       // Auto-detect subject label
       const subjectKeys = Object.keys(selectedBreakdown);
       const autoSubject = subjectKeys.length === 1 ? subjectKeys[0] : "Mixed";
@@ -2964,6 +3052,34 @@ function AdminSets() {
 
     setMsg("WAIT: CSV questions upload ho rahe hain aur set ban raha hai...");
     try {
+      const csvBreakdownSecure = csvQuestions.reduce((acc, q) => {
+        const sub = q.subject || "Mixed";
+        acc[sub] = (acc[sub] || 0) + 1;
+        return acc;
+      }, {});
+      const csvSubjectKeysSecure = Object.keys(csvBreakdownSecure);
+      const autoSubjectSecure = csvSubjectKeysSecure.length === 1 ? csvSubjectKeysSecure[0] : "Mixed";
+      const secureResult = await supabase.adminWrite("create_set_from_csv", {
+        set: {
+          set_name: form.set_name.trim(),
+          subject: autoSubjectSecure,
+          exam_type: form.exam_type,
+          time_limit_minutes: Number(form.time_limit_minutes),
+          is_paid: form.is_paid,
+          ...(form.folder_id ? { folder_id: form.folder_id } : {})
+        },
+        questions: csvQuestions
+      }, user?.access_token);
+      if (secureResult.error) { setMsg(`ERR: ${secureResult.error}`); return; }
+      setMsg(`OK: "${form.set_name}" CSV se ban gayi. ${secureResult.data?.inserted_question_count || csvQuestions.length} questions question bank me bhi add ho gaye.`);
+      setCsvQuestions([]);
+      setCsvFileName("");
+      setCsvMsg("");
+      setForm({ set_name:"", exam_type:"UKPSC", time_limit_minutes:30, is_paid:false, folder_id:"", subject:"Mixed" });
+      setSelectedQ([]);
+      setCreating(false);
+      loadData();
+      return;
       const csvBreakdown = csvQuestions.reduce((acc, q) => {
         const sub = q.subject || "Mixed";
         acc[sub] = (acc[sub] || 0) + 1;
@@ -3274,7 +3390,12 @@ function AdminSets() {
                       </div>
                     </div>
                     <button className="text-red-400 hover:text-red-600 font-bold flex-shrink-0 text-xl leading-none"
-                      onClick={() => confirm("Are you sure you want to delete this?") && supabase.delete("practice_sets", s.id).then(loadData)}>
+                      onClick={async () => {
+                        if (!confirm("Are you sure you want to delete this?")) return;
+                        const result = await supabase.adminWrite("delete_set", { id: s.id }, user?.access_token);
+                        if (result.error) { setMsg("ERR: " + result.error); return; }
+                        loadData();
+                      }}>
                       ✕
                     </button>
                   </div>
@@ -3288,7 +3409,8 @@ function AdminSets() {
                         value={s.folder_id || ""}
                         onChange={async (e) => {
                           const newFId = e.target.value || null;
-                          await supabase.moveSetToFolder(s.id, newFId);
+                          const result = await supabase.adminWrite("move_set_to_folder", { set_id: s.id, folder_id: newFId }, user?.access_token);
+                          if (result.error) { setMsg("ERR: " + result.error); return; }
                           loadData();
                         }}
                       >
@@ -3315,6 +3437,7 @@ function AdminSets() {
 }
 
 function AdminFolders() {
+  const { user } = useAuth();
   const [folders, setFolders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dbError, setDbError] = useState("");
@@ -3342,8 +3465,11 @@ function AdminFolders() {
   const createFolder = async () => {
     if (!newName.trim()) { setMsg("❌ Folder name is required"); return; }
     setMsg("⏳ Folder ban raha hai...");
-    const result = await supabase.createFolder(newName.trim(), newParent || null);
-    if (result?.ok) {
+    const result = await supabase.adminWrite("create_folder", {
+      name: newName.trim(),
+      ...(newParent ? { parent_id: newParent } : {})
+    }, user?.access_token);
+    if (!result?.error) {
       setNewName(""); setNewParent("");
       setMsg("✅ Folder \"" + newName.trim() + "\" bana diya!");
       await loadFolders();
@@ -3356,13 +3482,15 @@ function AdminFolders() {
   const startEdit = (f) => { setEditingId(f.id); setEditName(f.name); };
   const saveEdit = async (id) => {
     if (!editName.trim()) return;
-    await supabase.updateFolder(id, editName.trim());
+    const result = await supabase.adminWrite("update_folder", { id, name: editName.trim() }, user?.access_token);
+    if (result?.error) { setMsg("ERR: " + result.error); return; }
     setEditingId(null);
     await loadFolders();
   };
   const deleteFolder = async (id) => {
     if (!confirm("Folder delete karne se uske andar ke sets unlinked ho jayenge. Pakka?")) return;
-    await supabase.deleteFolder(id);
+    const result = await supabase.adminWrite("delete_folder", { id }, user?.access_token);
+    if (result?.error) { setMsg("ERR: " + result.error); return; }
     await loadFolders();
   };
 
@@ -3524,6 +3652,7 @@ CREATE POLICY "folders_write" ON folders FOR ALL USING (true) WITH CHECK (true);
   );
 }
 function AdminDaily() {
+  const { user } = useAuth();
   const [scheduled, setScheduled] = useState([]);
   const [allQ, setAllQ] = useState([]);
   const [form, setForm] = useState({ date: new Date().toISOString().split("T")[0], question_id: "" });
@@ -3542,7 +3671,8 @@ function AdminDaily() {
   const schedule = async () => {
     if (!form.date || !form.question_id) { setMsg("❌ Please select a date and question"); return; }
     setMsg("⏳ Save ho raha hai...");
-    await supabase.insert("daily_challenges", { challenge_date: form.date, question_id: form.question_id });
+    const result = await supabase.adminWrite("schedule_daily_challenge", { challenge_date: form.date, question_id: form.question_id }, user?.access_token);
+    if (result?.error) { setMsg("âŒ Error: " + result.error); return; }
     setMsg("✅ Daily challenge schedule ho gaya!");
     await loadData();
     setTimeout(() => setMsg(""), 2000);
@@ -3593,6 +3723,7 @@ function AdminDaily() {
 }
 
 function AdminReports() {
+  const { user } = useAuth();
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("pending");
@@ -3607,7 +3738,8 @@ function AdminReports() {
   };
 
   const resolve = async (id) => {
-    await supabase.resolveReport(id);
+    const result = await supabase.adminWrite("resolve_report", { id }, user?.access_token);
+    if (result?.error) return;
     await loadReports();
   };
 
@@ -3919,7 +4051,7 @@ function ProfilePage() {
         { method:"PATCH", headers: SB_HEADERS, body: JSON.stringify({ full_name: form.name.trim(), exam_target: form.exam_target }) }
       );
       // localStorage bhi update karo
-      login({ ...user, name: form.name.trim(), exam_target: form.exam_target });
+      await login({ ...user, name: form.name.trim(), exam_target: form.exam_target });
       showMsg("success", "✅ Profile update ho gayi!");
     } catch(e) { showMsg("error", "❌ Could not save — please try again"); }
     setSaving(false);
