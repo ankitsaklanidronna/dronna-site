@@ -5,3 +5,6 @@ verify_jwt = true
 
 [functions.admin-write]
 verify_jwt = true
+
+[functions.groq-coach]
+verify_jwt = false

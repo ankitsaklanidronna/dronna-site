@@ -8,7 +8,6 @@ import Chart from 'chart.js/auto';
 const CONFIG = {
   SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL,
   SUPABASE_ANON_KEY: import.meta.env.VITE_SUPABASE_ANON_KEY,
-  GROQ_API_KEY: import.meta.env.VITE_GROQ_KEY,   // ⚠️ Baad mein Supabase Edge Function se replace karna
   RAZORPAY_KEY: import.meta.env.VITE_RAZORPAY_KEY || "YOUR_RAZORPAY_KEY_ID",
   ADMIN_EMAIL: import.meta.env.VITE_ADMIN_EMAIL,
 };
@@ -530,27 +529,10 @@ async function getGroq(studentData) {
     " Rules: Hindi में लिखो। Teacher style — direct, clear, caring. AI/technology mention नहीं। Max 150 words।";
 
   try {
-    const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": "Bearer " + CONFIG.GROQ_API_KEY,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
-        messages: [
-          {
-            role: "system",
-            content: "You are an experienced Hindi-speaking teacher for UKPSC/UKSSSC competitive exams. Always respond in Hindi (Devanagari script). Be direct, specific and encouraging like a real mentor."
-          },
-          { role: "user", content: promptText }
-        ],
-        max_tokens: 500,
-        temperature: 0.75
-      })
+    const d = await invokeEdgeFunction("groq-coach", {
+      body: { promptText }
     });
-    const d = await r.json();
-    return d.choices && d.choices[0] ? d.choices[0].message.content : null;
+    return d?.content || null;
   } catch(e) {
     return null;
   }
