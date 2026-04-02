@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="hi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dronna - Offline</title>
+    <meta name="theme-color" content="#0D1B3E" />
+    <style>
+      :root {
+        color-scheme: light;
+        --navy: #0d1b3e;
+        --saffron: #f97316;
+        --cream: #fff8f0;
+        --text: #1e293b;
+        --muted: #64748b;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        background:
+          radial-gradient(circle at top right, rgba(249, 115, 22, 0.14), transparent 28%),
+          linear-gradient(160deg, #fff8f0 0%, #fffdf9 55%, #fef0dc 100%);
+        color: var(--text);
+        font-family: "Manrope", "Segoe UI", sans-serif;
+      }
+
+      main {
+        width: min(100%, 560px);
+        background: rgba(255, 255, 255, 0.88);
+        border: 1px solid rgba(13, 27, 62, 0.08);
+        border-radius: 28px;
+        padding: 32px;
+        box-shadow: 0 24px 80px rgba(13, 27, 62, 0.12);
+        backdrop-filter: blur(16px);
+      }
+
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 900;
+        letter-spacing: -0.04em;
+        color: var(--navy);
+        margin-bottom: 18px;
+      }
+
+      .brand-mark {
+        width: 42px;
+        height: 42px;
+        display: grid;
+        place-items: center;
+        border-radius: 14px;
+        color: white;
+        background: linear-gradient(135deg, #e65100, #f97316);
+        box-shadow: 0 12px 30px rgba(230, 81, 0, 0.28);
+      }
+
+      h1 {
+        margin: 0 0 10px;
+        font-size: clamp(28px, 5vw, 38px);
+        color: var(--navy);
+      }
+
+      p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.7;
+        font-size: 16px;
+      }
+
+      .actions {
+        display: flex;
+        gap: 12px;
+        margin-top: 26px;
+        flex-wrap: wrap;
+      }
+
+      .button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 12px 18px;
+        border-radius: 999px;
+        font-weight: 800;
+        text-decoration: none;
+        border: none;
+        cursor: pointer;
+      }
+
+      .button-primary {
+        color: white;
+        background: linear-gradient(135deg, #e65100, #f97316);
+      }
+
+      .button-secondary {
+        color: var(--navy);
+        background: rgba(13, 27, 62, 0.06);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="brand">
+        <div class="brand-mark">D</div>
+        <span>DRONNA</span>
+      </div>
+      <h1>Internet abhi unavailable hai</h1>
+      <p>
+        App shell aur kuch static pages offline chalenge, lekin latest quizzes, auth aur live data ke liye connection zaroori hai.
+        Network aate hi retry karein.
+      </p>
+      <div class="actions">
+        <button class="button button-primary" onclick="window.location.reload()">Retry</button>
+        <a class="button button-secondary" href="/#/">Home</a>
+      </div>
+    </main>
+  </body>
+</html>
