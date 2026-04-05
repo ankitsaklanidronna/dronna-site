@@ -73,13 +73,9 @@ a:hover {
 .brand-mark {
   width: 40px;
   height: 40px;
+  display: block;
+  object-fit: contain;
   border-radius: 14px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, var(--orange), var(--orange-soft));
-  color: var(--white);
-  font-size: 20px;
   box-shadow: 0 12px 24px -16px rgba(230, 81, 0, 0.75);
 }
 

@@ -55,11 +55,9 @@
       .brand-mark {
         width: 42px;
         height: 42px;
-        display: grid;
-        place-items: center;
+        display: block;
+        object-fit: contain;
         border-radius: 14px;
-        color: white;
-        background: linear-gradient(135deg, #e65100, #f97316);
         box-shadow: 0 12px 30px rgba(230, 81, 0, 0.28);
       }
 
@@ -109,7 +107,7 @@
   <body>
     <main>
       <div class="brand">
-        <div class="brand-mark">D</div>
+        <img class="brand-mark" src="/favicon.svg" alt="Dronna logo" />
         <span>DRONNA</span>
       </div>
       <h1>Internet abhi unavailable hai</h1>
