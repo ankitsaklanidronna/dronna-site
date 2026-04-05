@@ -1,4 +1,4 @@
-const CACHE_PREFIX = 'dronna-pwa-v1';
+const CACHE_PREFIX = 'dronna-pwa-v2';
 const SHELL_CACHE = `${CACHE_PREFIX}-shell`;
 const RUNTIME_CACHE = `${CACHE_PREFIX}-runtime`;
 const IMAGE_CACHE = `${CACHE_PREFIX}-images`;
