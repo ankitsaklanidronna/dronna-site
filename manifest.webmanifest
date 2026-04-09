@@ -1,14 +1,14 @@
 {
   "name": "Dronna",
   "short_name": "Dronna",
-  "description": "UKPSC aur UKSSSC exam preparation ke liye installable practice app.",
+  "description": "An installable practice app for UKPSC and UKSSSC exam preparation.",
   "id": "/",
   "start_url": "/#/",
   "scope": "/",
   "display": "standalone",
   "background_color": "#FFF8F0",
   "theme_color": "#0D1B3E",
-  "lang": "hi",
+  "lang": "en",
   "categories": ["education", "productivity"],
   "icons": [
     {
