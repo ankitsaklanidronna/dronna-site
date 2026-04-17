@@ -1,4 +1,4 @@
-const CACHE_PREFIX = 'dronna-pwa-v2';
+const CACHE_PREFIX = 'dronna-pwa-v3';
 const SHELL_CACHE = `${CACHE_PREFIX}-shell`;
 const RUNTIME_CACHE = `${CACHE_PREFIX}-runtime`;
 const IMAGE_CACHE = `${CACHE_PREFIX}-images`;
@@ -105,22 +105,26 @@ function isFontRequest(url) {
 }
 
 async function handleNavigation(request) {
-  const cache = await caches.open(PAGE_CACHE);
+  const url = new URL(request.url);
+  const isAppShellRequest = url.pathname === '/' || url.pathname === '/index.html';
+  const cache = await caches.open(isAppShellRequest ? SHELL_CACHE : PAGE_CACHE);
 
   try {
     const networkResponse = await fetch(request);
     if (networkResponse && networkResponse.ok) {
-      cache.put(request, networkResponse.clone());
+      const cacheKey = isAppShellRequest ? '/index.html' : request;
+      cache.put(cacheKey, networkResponse.clone());
     }
     return networkResponse;
   } catch (error) {
-    const cachedResponse = await cache.match(request);
+    const cacheKey = isAppShellRequest ? '/index.html' : request;
+    const cachedResponse = await cache.match(cacheKey);
     if (cachedResponse) return cachedResponse;
 
-    const shellResponse = await caches.match('/index.html');
+    const shellResponse = isAppShellRequest ? await caches.match('/index.html') : null;
     if (shellResponse) return shellResponse;
 
-    return caches.match('/offline.html');
+    return (await caches.match('/offline.html')) || Response.error();
   }
 }
 
@@ -150,16 +154,23 @@ async function cacheFirst(request, cacheName) {
 async function staleWhileRevalidate(request, cacheName) {
   const cache = await caches.open(cacheName);
   const cachedResponse = await cache.match(request);
-  const fetchPromise = fetch(request)
-    .then((networkResponse) => {
-      if (networkResponse && (networkResponse.ok || networkResponse.type === 'opaque')) {
-        cache.put(request, networkResponse.clone());
-      }
-      return networkResponse;
-    })
-    .catch(() => null);
+  const refreshPromise = fetch(request).then((networkResponse) => {
+    if (networkResponse && (networkResponse.ok || networkResponse.type === 'opaque')) {
+      cache.put(request, networkResponse.clone());
+    }
+    return networkResponse;
+  });
 
-  return cachedResponse || fetchPromise || caches.match('/offline.html');
+  if (cachedResponse) {
+    refreshPromise.catch(() => null);
+    return cachedResponse;
+  }
+
+  try {
+    return await refreshPromise;
+  } catch (error) {
+    return Response.error();
+  }
 }
 
 async function cacheUrls(urls) {
