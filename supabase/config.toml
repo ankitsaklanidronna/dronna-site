@@ -1,10 +1,16 @@
 project_id = "dronna-site"
 
 [functions.admin-status]
-verify_jwt = true
+verify_jwt = false
 
 [functions.admin-write]
-verify_jwt = true
+verify_jwt = false
 
 [functions.groq-coach]
+verify_jwt = false
+
+[functions.razorpay-payment]
+verify_jwt = false
+
+[functions.razorpay-webhook]
 verify_jwt = false

@@ -1,0 +1,8 @@
+-- Superseded by security_final.sql.
+--
+-- Do not run this file by itself for production. The final RLS baseline is:
+--
+--   supabase/security_final.sql
+--
+-- It includes the user-owned students/attempts policies plus tighter column
+-- grants so students cannot upgrade subscription_plan from the browser.

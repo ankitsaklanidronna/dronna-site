@@ -1,9 +1,5 @@
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
-type AdminRow = {
-  email: string;
-};
-
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -20,39 +16,40 @@ Deno.serve(async (req) => {
   try {
     if (req.method === "OPTIONS") return json({ ok: true });
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
-    if (!supabaseUrl || !anonKey || !serviceRoleKey) {
+    if (!supabaseUrl || !serviceRoleKey) {
       return json({ error: "Missing Supabase environment configuration" }, 500);
     }
 
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) return json({ error: "Missing Authorization header" }, 401);
+    const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+    if (!token) return json({ error: "Missing bearer token" }, 401);
 
-    const authClient = createClient(supabaseUrl, anonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
+    const authClient = createClient(supabaseUrl, serviceRoleKey);
     const {
       data: { user },
       error: authError,
-    } = await authClient.auth.getUser();
+    } = await authClient.auth.getUser(token);
 
     if (authError || !user?.email) {
       return json({ error: "Unauthorized" }, 401);
     }
 
-    const adminClient = createClient(supabaseUrl, serviceRoleKey);
-    const { data, error } = await adminClient
-      .from("admins")
+    const normalizedEmail = user.email.trim().toLowerCase();
+    const { data: adminRow, error: adminLookupError } = await authClient
+      .from("admin_users")
       .select("email")
-      .eq("email", user.email)
-      .maybeSingle<AdminRow>();
+      .eq("email", normalizedEmail)
+      .maybeSingle();
 
-    if (error) return json({ error: error.message }, 500);
+    if (adminLookupError) {
+      return json({ error: adminLookupError.message }, 500);
+    }
 
     return json({
-      isAdmin: Boolean(data),
+      isAdmin: Boolean(adminRow),
       email: user.email,
     });
   } catch (error) {
