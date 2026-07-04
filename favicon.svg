@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
+  <title id="title">Dronna favicon</title>
+  <desc id="desc">Stylized D logo with mountain peaks.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0D1B3E" />
+      <stop offset="100%" stop-color="#1A3A6E" />
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#E65100" />
+      <stop offset="100%" stop-color="#FBBF24" />
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="32" fill="url(#bg)" />
+  <path d="M26 26h32c24.3 0 44 19.7 44 44s-19.7 44-44 44H26z" fill="url(#accent)" />
+  <path d="M44 42h14c17.7 0 32 14.3 32 32S75.7 106 58 106H44z" fill="#0D1B3E" opacity=".96" />
+  <path d="M44 80l12-20 10 13 10-18 12 25z" fill="#FFF8F0" />
+</svg>
