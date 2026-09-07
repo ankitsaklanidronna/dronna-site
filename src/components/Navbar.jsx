@@ -20,6 +20,7 @@ export function Navbar({ transparent = false }) {
     { label: "Daily", path: "/daily", active: routePath === "/daily" },
     { label: "Leaderboard", path: "/leaderboard", active: routePath === "/leaderboard" },
     { label: "Syllabus", path: "/syllabus", active: routePath === "/syllabus" },
+    { label: "Ebooks", path: "/ebooks", active: routePath === "/ebooks" },
     ...(user?.isAdmin ? [{ label: "Admin", path: "/admin", active: routePath === "/admin", admin: true }] : [])
   ];
 
@@ -37,6 +38,7 @@ export function Navbar({ transparent = false }) {
           {!user && <>
             <span className={`nav-link ${textCol}`} onClick={() => navigate("/demo")}>Demo</span>
             <span className={`nav-link ${textCol}`} onClick={() => navigate("/syllabus")}>Syllabus</span>
+            <span className={`nav-link ${textCol}`} onClick={() => navigate("/ebooks")}>Ebooks</span>
             <span className={`nav-link ${textCol}`} onClick={() => navigate("/login")}>Login</span>
             <button className="btn-primary" onClick={() => navigate("/signup")}>Start Free</button>
           </>}
@@ -71,6 +73,7 @@ export function Navbar({ transparent = false }) {
           {!user && <>
             <span className="nav-link text-gray-700" onClick={() => { navigate("/demo"); setMenuOpen(false); }}>Demo</span>
             <span className="nav-link text-gray-700" onClick={() => { navigate("/syllabus"); setMenuOpen(false); }}>Syllabus</span>
+            <span className="nav-link text-gray-700" onClick={() => { navigate("/ebooks"); setMenuOpen(false); }}>Ebooks</span>
             <span className="nav-link text-gray-700" onClick={() => { navigate("/login"); setMenuOpen(false); }}>Login</span>
             <button className="btn-primary w-full justify-center" onClick={() => { navigate("/signup"); setMenuOpen(false); }}>Start Free</button>
           </>}

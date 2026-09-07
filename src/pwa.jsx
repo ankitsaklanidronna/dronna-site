@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { getRoutePath, useRouter } from './context/RouterContext.jsx';
 
 const INSTALL_DISMISS_KEY = 'dronna_pwa_install_dismissed';
 const PWA_STATIC_URLS = [
@@ -77,6 +78,12 @@ export function registerServiceWorker() {
         window.location.reload();
       });
 
+      navigator.serviceWorker.addEventListener('message', (event) => {
+        if (event.data?.type !== 'DRONNA_SW_UPDATED' || hasReloadedForUpdate) return;
+        hasReloadedForUpdate = true;
+        window.location.reload();
+      });
+
       const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
       registration.update().catch(() => null);
 
@@ -108,12 +115,14 @@ export function registerServiceWorker() {
 }
 
 export function PwaInstallBanner() {
+  const { page } = useRouter();
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [isInstalled, setIsInstalled] = useState(() => isStandaloneMode());
   const [isOnline, setIsOnline] = useState(() => navigator.onLine);
   const [dismissed, setDismissed] = useState(() => localStorage.getItem(INSTALL_DISMISS_KEY) === '1');
 
   const isIos = useMemo(() => /iphone|ipad|ipod/i.test(window.navigator.userAgent), []);
+  const isQuizRoute = getRoutePath(page).startsWith('/quiz/');
 
   useEffect(() => {
     const handleInstallPrompt = (event) => {
@@ -159,9 +168,9 @@ export function PwaInstallBanner() {
   }, []);
 
   useEffect(() => {
-    document.body.classList.toggle('install-banner-open', !isInstalled && !dismissed && (Boolean(deferredPrompt) || isIos));
+    document.body.classList.toggle('install-banner-open', !isQuizRoute && !isInstalled && !dismissed && (Boolean(deferredPrompt) || isIos));
     return () => document.body.classList.remove('install-banner-open');
-  }, [deferredPrompt, dismissed, isInstalled, isIos]);
+  }, [deferredPrompt, dismissed, isInstalled, isIos, isQuizRoute]);
 
   const hideInstallBanner = () => {
     localStorage.setItem(INSTALL_DISMISS_KEY, '1');
@@ -181,7 +190,7 @@ export function PwaInstallBanner() {
     setDeferredPrompt(null);
   };
 
-  const shouldShowInstallBanner = !isInstalled && !dismissed && (Boolean(deferredPrompt) || isIos);
+  const shouldShowInstallBanner = !isQuizRoute && !isInstalled && !dismissed && (Boolean(deferredPrompt) || isIos);
 
   return (
     <>

@@ -1,4 +1,5 @@
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { sendCoursePurchaseEmail } from "../_shared/transactional-email.ts";
 
 const CORS_HEADERS = {
   "Content-Type": "application/json",
@@ -51,6 +52,52 @@ function getPaymentEntity(event: any) {
   return event?.payload?.payment?.entity || {};
 }
 
+async function getStudentName(adminClient: any, email: string) {
+  const { data } = await adminClient
+    .from("students")
+    .select("full_name")
+    .eq("email", email)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  return String(data?.full_name || "").trim();
+}
+
+async function getCourseName(adminClient: any, folderId: string | null) {
+  if (!folderId) return "";
+  const { data } = await adminClient
+    .from("folders")
+    .select("name")
+    .eq("id", folderId)
+    .maybeSingle();
+  return String(data?.name || "").trim();
+}
+
+async function sendPurchaseEmailSafely(adminClient: any, details: {
+  email: string;
+  folderId?: string | null;
+  amountInr?: number | string | null;
+  orderId?: string;
+  paymentId?: string;
+}) {
+  try {
+    const [studentName, courseName] = await Promise.all([
+      getStudentName(adminClient, details.email),
+      getCourseName(adminClient, details.folderId || null),
+    ]);
+    await sendCoursePurchaseEmail(adminClient, {
+      email: details.email,
+      name: studentName,
+      courseName,
+      amountInr: details.amountInr,
+      orderId: details.orderId,
+      paymentId: details.paymentId,
+    });
+  } catch (error) {
+    console.error("Purchase email failed", error);
+  }
+}
+
 async function markPaymentCaptured(adminClient: any, payment: any) {
   const orderId = String(payment.order_id || "");
   const paymentId = String(payment.id || "");
@@ -58,7 +105,7 @@ async function markPaymentCaptured(adminClient: any, payment: any) {
 
   const { data: transaction, error: lookupError } = await adminClient
     .from("payment_transactions")
-    .select("id, student_email, status, folder_id, razorpay_order_id, coupon_id")
+    .select("id, student_email, status, folder_id, ebook_id, razorpay_order_id, coupon_id, amount_inr")
     .eq("razorpay_order_id", orderId)
     .maybeSingle();
 
@@ -91,6 +138,27 @@ async function markPaymentCaptured(adminClient: any, payment: any) {
         .update({ used_count: Number(couponRow?.used_count || 0) + 1, updated_at: new Date().toISOString() })
         .eq("id", transaction.coupon_id);
     }
+  }
+
+  if (transaction.ebook_id) {
+    const { error: purchaseError } = await adminClient
+      .from("ebook_purchases")
+      .upsert(
+        {
+          student_email: email,
+          ebook_id: transaction.ebook_id,
+          status: "active",
+          download_password: email,
+          generation_status: "pending",
+          generation_error: null,
+          razorpay_order_id: orderId,
+          razorpay_payment_id: paymentId,
+        },
+        { onConflict: "student_email,ebook_id" },
+      );
+    if (purchaseError) return json({ error: purchaseError.message }, 400);
+
+    return json({ ok: true, status: "paid", order_id: orderId, payment_id: paymentId, ebook_id: transaction.ebook_id });
   }
 
   const { data: existingProfile, error: profileLookupError } = await adminClient
@@ -133,6 +201,14 @@ async function markPaymentCaptured(adminClient: any, payment: any) {
       );
     if (purchaseError) return json({ error: purchaseError.message }, 400);
   }
+
+  await sendPurchaseEmailSafely(adminClient, {
+    email,
+    folderId: transaction.folder_id,
+    amountInr: transaction.amount_inr,
+    orderId,
+    paymentId,
+  });
 
   return json({ ok: true, status: "paid", order_id: orderId, payment_id: paymentId });
 }

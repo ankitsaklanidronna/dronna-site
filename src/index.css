@@ -30,7 +30,8 @@
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: 'Manrope', 'Noto Sans Devanagari', sans-serif; background: var(--cream); color: var(--text); }
+html { scroll-behavior: smooth; overflow-x: hidden; }
+body { font-family: 'Manrope', 'Noto Sans Devanagari', sans-serif; background: var(--cream); color: var(--text); overflow-x: hidden; -webkit-font-smoothing: antialiased; }
 body.install-banner-open { padding-bottom: 116px; }
 
 .devanagari { font-family: 'Noto Sans Devanagari', 'Manrope', sans-serif; }
@@ -39,11 +40,11 @@ body.install-banner-open { padding-bottom: 116px; }
 .font-body { font-family: 'Manrope', sans-serif; }
 
 /* ── Buttons ── */
-.btn-primary { background: var(--saffron); color: white; padding: 10px 24px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; font-size: 15px; transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px; }
+.btn-primary { background: var(--saffron); color: white; padding: 10px 24px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; font-size: 15px; transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px; touch-action: manipulation; }
 .btn-primary:hover { background: #ea6c10; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(249,115,22,0.4); }
-.btn-navy { background: var(--navy); color: white; padding: 10px 24px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; font-size: 15px; transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px; }
+.btn-navy { background: var(--navy); color: white; padding: 10px 24px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; font-size: 15px; transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px; touch-action: manipulation; }
 .btn-navy:hover { background: var(--navy-light); transform: translateY(-1px); }
-.btn-outline { background: transparent; color: var(--navy); padding: 10px 24px; border-radius: 8px; border: 2px solid var(--navy); cursor: pointer; font-weight: 600; font-size: 15px; transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px; }
+.btn-outline { background: transparent; color: var(--navy); padding: 10px 24px; border-radius: 8px; border: 2px solid var(--navy); cursor: pointer; font-weight: 600; font-size: 15px; transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px; touch-action: manipulation; }
 .btn-outline:hover { background: var(--navy); color: white; }
 
 /* ── Cards ── */
@@ -95,53 +96,11 @@ label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 14px; c
 .border-t-line { border-top-color: var(--line); }
 .border-b-line-soft { border-bottom-color: var(--line-soft); }
 
-.promo-ticker {
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.promo-ticker-track {
-  display: flex;
-  width: max-content;
-  align-items: center;
-  animation: promoTicker 28s linear infinite;
-}
-
-.promo-ticker:hover .promo-ticker-track {
-  animation-play-state: paused;
-}
-
-.promo-ticker-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 24px;
-  font-size: 13px;
-  font-weight: 900;
-  letter-spacing: 0;
-  text-transform: uppercase;
-}
-
 /* ── Animations ── */
 @keyframes fadeIn { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
 .fade-in { animation: fadeIn 0.4s ease forwards; }
 @keyframes pulse { 0%,100%{transform:scale(1);} 50%{transform:scale(1.05);} }
 .pulse { animation: pulse 2s infinite; }
-@keyframes promoTicker {
-  from { transform: translateX(0); }
-  to { transform: translateX(-33.333%); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .promo-ticker-track {
-    animation: none;
-    flex-wrap: wrap;
-    width: 100%;
-    justify-content: center;
-    row-gap: 6px;
-  }
-}
-
 /* ── Dronna Loader ── */
 @keyframes letterDrop {
   0%   { opacity:0; transform: translateY(-20px) scale(0.6); }

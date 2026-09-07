@@ -175,6 +175,7 @@ export function Dashboard() {
     { label: "Daily", path: "/daily", active: false },
     { label: "Leaderboard", path: "/leaderboard", active: false },
     { label: "Syllabus", path: "/syllabus", active: false },
+    { label: "Ebooks", path: "/ebooks", active: false },
     ...(user.isAdmin ? [{ label: "Admin", path: "/admin", active: false, admin: true }] : [])
   ];
 
@@ -210,26 +211,26 @@ export function Dashboard() {
         </div>
       </nav>
 
-      <main className="w-full max-w-screen-2xl mx-auto px-6 py-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <main className="w-full max-w-screen-2xl mx-auto px-4 pb-28 pt-5 sm:px-6 sm:py-8 grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-8">
         {/* LEFT MAIN */}
         <div className="lg:col-span-8 space-y-8">
 
           {/* GREETING HEADER */}
-          <header className="relative p-10 rounded-2xl text-white overflow-hidden shadow-xl" style={{background:"var(--navy)"}}>
+          <header className="relative p-5 sm:p-10 rounded-2xl text-white overflow-hidden shadow-xl" style={{background:"var(--navy)"}}>
             <div className="absolute inset-0 pointer-events-none" style={{opacity:0.06, backgroundImage:"radial-gradient(rgba(255,255,255,0.8) 1px, transparent 1px)", backgroundSize:"20px 20px"}}></div>
             <div className="relative z-10 space-y-2">
-              <h1 className="text-3xl md:text-5xl font-headline font-extrabold tracking-tight">
+              <h1 className="text-2xl sm:text-3xl md:text-5xl font-headline font-extrabold tracking-tight">
                 Hello, <span style={{color:"#F47B20"}}>{user.name || "Aspirant"}</span>
               </h1>
-              <p className="font-medium text-lg md:text-xl max-w-xl" style={{color:"rgba(197,202,233,0.9)"}}>
+              <p className="font-medium text-sm sm:text-lg md:text-xl max-w-xl" style={{color:"rgba(197,202,233,0.9)"}}>
                 Target: <strong>{user.exam_target}</strong> | Plan: <span className="px-2 py-0.5 rounded-full text-xs font-black" style={{background:"rgba(244,123,32,0.2)", color:"#F47B20"}}>{user.subscription_plan?.toUpperCase() || "FREE"}</span>
               </p>
             </div>
           </header>
 
           <section>
-            <div className="bg-white p-6 rounded-2xl border shadow-sm" style={{borderColor:"#EEEEEE"}}>
-              <div className="flex items-start justify-between gap-4">
+            <div className="bg-white p-4 sm:p-6 rounded-2xl border shadow-sm" style={{borderColor:"#EEEEEE"}}>
+              <div className="flex flex-col items-start justify-between gap-4 min-[420px]:flex-row">
                 <div>
                   <p className="text-xs font-black uppercase tracking-widest" style={{color:"var(--saffron-dark)"}}>Purchased Course</p>
                   <h2 className="mt-2 text-2xl font-headline font-extrabold" style={{color:"var(--navy)"}}>
@@ -277,10 +278,10 @@ export function Dashboard() {
               {label:"Best Score", value: bestScore + "%", extra: bestScore >= 90 ? "Top 5%" : ""},
               {label:"Day Streak", value: streak, extra: "Days"},
             ].map((s, i) => (
-              <div key={i} className="bg-white p-6 rounded-xl border shadow-sm hover:shadow-md transition-all subtle-aipan-border" style={{borderColor:"#EEEEEE"}}>
+              <div key={i} className="bg-white p-4 sm:p-6 rounded-xl border shadow-sm hover:shadow-md transition-all subtle-aipan-border" style={{borderColor:"#EEEEEE"}}>
                 <span className="text-xs font-extrabold uppercase tracking-widest block mb-2" style={{color:"#9E9E9E"}}>{s.label}</span>
                 <div className="flex items-end gap-2">
-                  <span className="text-3xl font-headline font-extrabold" style={{color:"var(--navy)"}}>{s.value}</span>
+                  <span className="text-2xl sm:text-3xl font-headline font-extrabold" style={{color:"var(--navy)"}}>{s.value}</span>
                   {s.extra && <span className="text-xs font-bold mb-1.5 px-2 py-0.5 rounded-full" style={{color:"var(--saffron-dark)", background:"rgba(230,81,0,0.1)"}}>{s.extra}</span>}
                 </div>
               </div>
@@ -289,7 +290,7 @@ export function Dashboard() {
 
           {/* CHART + AI */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="md:col-span-2 bg-white p-8 rounded-2xl border shadow-sm" style={{borderColor:"#EEEEEE"}}>
+            <div className="md:col-span-2 bg-white p-4 sm:p-8 rounded-2xl border shadow-sm" style={{borderColor:"#EEEEEE"}}>
               <div className="flex justify-between items-center mb-6">
                 <div>
                   <h2 className="font-headline font-bold text-xl" style={{color:"var(--navy)"}}>Performance Trend</h2>
@@ -334,18 +335,18 @@ export function Dashboard() {
 
           {/* DAILY CHALLENGE BANNER */}
           <div className="relative p-0.5 rounded-2xl" style={{background:"linear-gradient(135deg, #F47B20, var(--saffron-dark))"}}>
-            <div className="bg-white px-8 py-8 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-6">
-              <div className="flex items-center gap-6">
-                <div className="w-16 h-16 rounded-full flex items-center justify-center text-sm font-black shadow-inner" style={{background:"#FFF3E0", color:"var(--saffron-dark)"}}>TODAY</div>
+            <div className="bg-white px-4 py-5 sm:px-8 sm:py-8 rounded-2xl flex flex-col md:flex-row items-stretch sm:items-center justify-between gap-5 sm:gap-6">
+              <div className="flex items-center gap-4 sm:gap-6">
+                <div className="w-14 h-14 sm:w-16 sm:h-16 shrink-0 rounded-full flex items-center justify-center text-xs sm:text-sm font-black shadow-inner" style={{background:"#FFF3E0", color:"var(--saffron-dark)"}}>TODAY</div>
                 <div>
-                  <h3 className="text-2xl font-headline font-extrabold" style={{color:"var(--navy)"}}>{dailyDone ? "Daily Challenge Done!" : "Daily Challenge"}</h3>
+                  <h3 className="text-xl sm:text-2xl font-headline font-extrabold" style={{color:"var(--navy)"}}>{dailyDone ? "Daily Challenge Done!" : "Daily Challenge"}</h3>
                   <p className="text-base mt-1" style={{color:"#616161"}}>
                     {dailyDone ? "Come back tomorrow for 5 new questions" : "Solve today's 5 questions and build your streak"}
                   </p>
                 </div>
               </div>
               {!dailyDone && (
-                <button className="px-10 py-4 rounded-full font-headline font-bold text-lg text-white shadow-2xl hover:-translate-y-1 transition-all" style={{background:"var(--navy)"}} onClick={() => navigate("/daily")}>
+                <button className="w-full sm:w-auto px-8 sm:px-10 py-3 sm:py-4 rounded-full font-headline font-bold text-base sm:text-lg text-white shadow-2xl hover:-translate-y-1 transition-all" style={{background:"var(--navy)"}} onClick={() => navigate("/daily")}>
                   Start Now
                 </button>
               )}
@@ -356,28 +357,29 @@ export function Dashboard() {
         {/* RIGHT SIDEBAR */}
         <aside className="lg:col-span-4 space-y-8">
           {/* QUICK ACTIONS */}
-          <div className="p-8 rounded-2xl space-y-4 border" style={{background:"#F9F9F9", borderColor:"#EEEEEE"}}>
+          <div className="p-4 sm:p-8 rounded-2xl space-y-4 border" style={{background:"#F9F9F9", borderColor:"#EEEEEE"}}>
             <h3 className="font-headline font-extrabold text-lg flex items-center gap-2" style={{color:"var(--navy)"}}>
               Quick Actions
               <div className="h-1 flex-grow rounded-full" style={{background:"rgba(13,27,62,0.05)"}}></div>
             </h3>
             {[
-              {icon:"Courses", label:"Course Store", path:"/practice"},
-              {icon:"Ranks", label:"Leaderboard", path:"/leaderboard"},
-              {icon:"Guide", label:"Syllabus Guide", path:"/syllabus"},
+              {icon:"school", label:"Course Store", path:"/practice"},
+              {icon:"leaderboard", label:"Leaderboard", path:"/leaderboard"},
+              {icon:"menu_book", label:"Syllabus Guide", path:"/syllabus"},
+              {icon:"auto_stories", label:"Ebook Store", path:"/ebooks"},
             ].map(a => (
               <div key={a.path} className="flex items-center justify-between p-4 bg-white rounded-xl border hover:border-orange-400 hover:shadow-lg transition-all cursor-pointer group" style={{borderColor:"#EEEEEE"}} onClick={() => navigate(a.path)}>
                 <div className="flex items-center gap-4">
-                  <span className="text-xl">{a.icon}</span>
+                  <span className="material-symbols-outlined text-xl text-saffron-dark" style={{ fontVariationSettings: "'FILL' 1" }}>{a.icon}</span>
                   <span className="font-bold" style={{color:"var(--navy)"}}>{a.label}</span>
                 </div>
-                <span className="text-gray-400 group-hover:text-orange-500 transition-colors font-bold">Go</span>
+                <span className="material-symbols-outlined text-gray-400 group-hover:text-orange-500 transition-colors">arrow_forward</span>
               </div>
             ))}
           </div>
 
           {/* RECENT ACTIVITY */}
-          <div className="bg-white p-8 rounded-2xl border shadow-sm" style={{borderColor:"#EEEEEE"}}>
+          <div className="bg-white p-4 sm:p-8 rounded-2xl border shadow-sm" style={{borderColor:"#EEEEEE"}}>
             <h3 className="font-headline font-extrabold text-lg mb-6 flex items-center gap-2" style={{color:"var(--navy)"}}>
               Recent Activity
               <div className="h-1 flex-grow rounded-full" style={{background:"rgba(13,27,62,0.05)"}}></div>
@@ -424,16 +426,17 @@ export function Dashboard() {
       </main>
 
       {/* MOBILE BOTTOM NAV */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t z-50 px-6 py-3 flex justify-between items-center" style={{borderColor:"#E0E0E0"}}>
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t z-50 grid grid-cols-5 items-center px-2 pb-[calc(0.6rem+env(safe-area-inset-bottom))] pt-2 shadow-[0_-14px_30px_rgba(13,27,62,0.08)]" style={{borderColor:"#E0E0E0"}}>
         {[
-          {icon:"📚", label:"Courses", path:"/practice"},
-          {icon:"📊", label:"Dashboard", path:"/dashboard"},
-          {icon:"🏆", label:"Ranks", path:"/leaderboard"},
-          {icon:"👤", label:"Profile", path:"/profile"},
+          {icon:"school", label:"Courses", path:"/practice"},
+          {icon:"dashboard", label:"Home", path:"/dashboard"},
+          {icon:"auto_stories", label:"Ebooks", path:"/ebooks"},
+          {icon:"leaderboard", label:"Ranks", path:"/leaderboard"},
+          {icon:"person", label:"Profile", path:"/profile"},
         ].map(m => (
-          <button key={m.path} className="flex flex-col items-center gap-1" style={{color: m.path === "/dashboard" ? "var(--saffron-dark)" : "#9E9E9E"}} onClick={() => navigate(m.path)}>
-            <span className="text-2xl">{m.icon}</span>
-            <span className="text-xs font-extrabold uppercase tracking-tighter">{m.label}</span>
+          <button key={m.path} className="flex min-w-0 flex-col items-center gap-0.5 rounded-lg px-1 py-1.5" style={{color: m.path === "/dashboard" ? "var(--saffron-dark)" : "#9E9E9E"}} onClick={() => navigate(m.path)}>
+            <span className="material-symbols-outlined text-[22px]" style={{ fontVariationSettings: m.path === "/dashboard" ? "'FILL' 1" : "'FILL' 0" }}>{m.icon}</span>
+            <span className="max-w-full truncate text-[10px] font-extrabold uppercase tracking-normal">{m.label}</span>
           </button>
         ))}
       </div>

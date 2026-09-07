@@ -4,6 +4,8 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { useRouter } from '../context/RouterContext.jsx';
 import { AdminCoupons } from './AdminCoupons.jsx';
 import { AdminDaily } from './AdminDaily.jsx';
+import { AdminEbookDiscounts } from './AdminEbookDiscounts.jsx';
+import { AdminEmailCampaigns } from './AdminEmailCampaigns.jsx';
 import { AdminFolders } from './AdminFolders.jsx';
 import { AdminQuestions } from './AdminQuestions.jsx';
 import { AdminReports } from './AdminReports.jsx';
@@ -30,6 +32,8 @@ export function AdminPanel() {
     { id:"questions", label:" Questions" },
     { id:"folders", label:" Folders" },
     { id:"coupons", label:" Coupons" },
+    { id:"ebook-discounts", label:" Ebook Prices" },
+    { id:"emails", label:" Promotional Email" },
     { id:"sets", label:" Practice Sets" },
     { id:"daily", label:" Daily Challenge" },
     { id:"reports", label:" Reports" },
@@ -66,6 +70,8 @@ export function AdminPanel() {
           {activeTab === "questions" && <AdminQuestions />}
           {activeTab === "folders" && <AdminFolders />}
           {activeTab === "coupons" && <AdminCoupons />}
+          {activeTab === "ebook-discounts" && <AdminEbookDiscounts />}
+          {activeTab === "emails" && <AdminEmailCampaigns />}
           {activeTab === "sets" && <AdminSets />}
           {activeTab === "daily" && <AdminDaily />}
           {activeTab === "reports" && <AdminReports />}

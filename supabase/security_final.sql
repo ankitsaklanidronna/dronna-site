@@ -162,8 +162,7 @@ as $$
   select exists (
     select 1
     from folder_path
-    where parent_id is not null
-      and coalesce(is_paid, false) = true
+    where coalesce(is_paid, false) = true
   );
 $$;
 

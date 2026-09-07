@@ -9,6 +9,7 @@ import {
   DailyChallenge,
   Dashboard,
   DemoPage,
+  EbookStorePage,
   LeaderboardPage,
   LoginPage,
   PracticePage,
@@ -79,6 +80,7 @@ function App() {
     case "/daily": return <DailyChallenge />;
     case "/leaderboard": return <LeaderboardPage />;
     case "/syllabus": return <SyllabusPage />;
+    case "/ebooks": return <EbookStorePage />;
     case "/admin": return <AdminPanel />;
     default: return (
       <div className="min-h-screen flex items-center justify-center" style={{background:"var(--cream)"}}>

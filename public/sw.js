@@ -1,4 +1,4 @@
-const CACHE_PREFIX = 'dronna-pwa-v3';
+const CACHE_PREFIX = 'dronna-pwa-v4';
 const SHELL_CACHE = `${CACHE_PREFIX}-shell`;
 const RUNTIME_CACHE = `${CACHE_PREFIX}-runtime`;
 const IMAGE_CACHE = `${CACHE_PREFIX}-images`;
@@ -24,7 +24,7 @@ const APP_SHELL_URLS = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(SHELL_CACHE)
-      .then((cache) => cache.addAll(APP_SHELL_URLS))
+      .then((cache) => cache.addAll(APP_SHELL_URLS.map((url) => new Request(url, { cache: 'reload' }))))
       .then(() => self.skipWaiting())
       .catch(() => self.skipWaiting())
   );
@@ -40,6 +40,8 @@ self.addEventListener('activate', (event) => {
     );
 
     await self.clients.claim();
+    const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    clients.forEach((client) => client.postMessage({ type: 'DRONNA_SW_UPDATED' }));
   })());
 });
 

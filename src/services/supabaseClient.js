@@ -256,6 +256,85 @@ export const supabase = {
         return await r.json();
       } catch(e) { return {error: e.message}; }
     },
+    requestPasswordResetCode: async ({ email }) => {
+      try {
+        const r = await fetch(`${CONFIG.SUPABASE_URL}/auth/v1/recover`, {
+          method: "POST",
+          headers: { "apikey": CONFIG.SUPABASE_ANON_KEY, "Content-Type": "application/json" },
+          body: JSON.stringify({ email })
+        });
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) {
+          return {
+            data: null,
+            error: data?.error_description || data?.msg || data?.message || data?.error || "Reset code could not be sent.",
+            status: r.status
+          };
+        }
+        return { data, error: null, status: r.status };
+      } catch (e) {
+        return { data: null, error: e.message || "Reset code could not be sent.", status: 0 };
+      }
+    },
+    verifyPasswordResetCode: async ({ email, token }) => {
+      try {
+        const r = await fetch(`${CONFIG.SUPABASE_URL}/auth/v1/verify`, {
+          method: "POST",
+          headers: { "apikey": CONFIG.SUPABASE_ANON_KEY, "Content-Type": "application/json" },
+          body: JSON.stringify({ email, token, type: "recovery" })
+        });
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok || !data?.access_token) {
+          return {
+            data: null,
+            error: data?.error_description || data?.msg || data?.message || data?.error || "The code is invalid or has expired.",
+            status: r.status
+          };
+        }
+        return { data, error: null, status: r.status };
+      } catch (e) {
+        return { data: null, error: e.message || "The code could not be verified.", status: 0 };
+      }
+    },
+    updatePassword: async ({ accessToken, password }) => {
+      try {
+        const r = await fetch(`${CONFIG.SUPABASE_URL}/auth/v1/user`, {
+          method: "PUT",
+          headers: {
+            "apikey": CONFIG.SUPABASE_ANON_KEY,
+            "Authorization": `Bearer ${accessToken}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ password })
+        });
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) {
+          return {
+            data: null,
+            error: data?.error_description || data?.msg || data?.message || data?.error || "Password could not be updated.",
+            status: r.status
+          };
+        }
+        return { data, error: null, status: r.status };
+      } catch (e) {
+        return { data: null, error: e.message || "Password could not be updated.", status: 0 };
+      }
+    },
+    signOut: async (accessToken) => {
+      if (!accessToken) return { error: null };
+      try {
+        const r = await fetch(`${CONFIG.SUPABASE_URL}/auth/v1/logout`, {
+          method: "POST",
+          headers: {
+            "apikey": CONFIG.SUPABASE_ANON_KEY,
+            "Authorization": `Bearer ${accessToken}`
+          }
+        });
+        return { error: r.ok ? null : "Recovery session could not be closed." };
+      } catch (e) {
+        return { error: e.message || "Recovery session could not be closed." };
+      }
+    },
     refreshSession: async (refreshToken) => {
       try {
         const r = await fetch(`${CONFIG.SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
@@ -402,6 +481,30 @@ export const supabase = {
           return { error: retryError.message };
         }
       }
+      return { error: e.message };
+    }
+  },
+  sendWelcomeEmail: async (payload, accessToken) => {
+    try {
+      const session = await supabase.auth.ensureAccessToken(accessToken);
+      if (session.error) return { error: session.error };
+      return await invokeEdgeFunction("send-email", {
+        accessToken: session.accessToken,
+        body: { action: "welcome", payload }
+      });
+    } catch (e) {
+      return { error: e.message };
+    }
+  },
+  sendCoursePurchaseEmail: async (payload, accessToken) => {
+    try {
+      const session = await supabase.auth.ensureAccessToken(accessToken);
+      if (session.error) return { error: session.error };
+      return await invokeEdgeFunction("send-email", {
+        accessToken: session.accessToken,
+        body: { action: "course_purchase", payload }
+      });
+    } catch (e) {
       return { error: e.message };
     }
   },
@@ -705,6 +808,69 @@ export const supabase = {
       const uniqueRows = Array.from(new Map(rows.filter((row) => row.folder_id).map((row) => [row.folder_id, row])).values());
       return { data: uniqueRows, error: null };
     } catch(e) { return { data: [], error: e.message }; }
+  },
+  getPublicEbooks: async () => {
+    if (!CONFIG.SUPABASE_URL || !CONFIG.SUPABASE_ANON_KEY) {
+      return { data: [], error: "" };
+    }
+
+    try {
+      const columns = [
+        "id",
+        "title",
+        "subtitle",
+        "description",
+        "cover_url",
+        "preview_url",
+        "price_inr",
+        "mrp_inr",
+        "discount_percent",
+        "pages",
+        "file_type",
+        "tags",
+        "is_active"
+      ].join(",");
+      const url = `${CONFIG.SUPABASE_URL}/rest/v1/ebooks?select=${columns}&is_active=eq.true&order=sort_order.asc,title.asc&apikey=${CONFIG.SUPABASE_ANON_KEY}`;
+      const response = await fetchWithTimeout(url, { headers: SB_HEADERS });
+      const data = await response.json().catch(() => []);
+      if (!response.ok || !Array.isArray(data)) {
+        return { data: [], error: data?.message || data?.hint || "Ebooks could not be loaded." };
+      }
+      return { data, error: null };
+    } catch (e) {
+      return { data: [], error: getFetchErrorMessage(e, "Ebooks could not be loaded.") };
+    }
+  },
+  getMyEbookLibrary: async (accessToken) => {
+    try {
+      const auth = await supabase.getRequiredAuthHeaders(accessToken);
+      if (auth.error) return { data: [], error: auth.error };
+      const url = `${CONFIG.SUPABASE_URL}/rest/v1/rpc/get_my_ebook_library?apikey=${CONFIG.SUPABASE_ANON_KEY}`;
+      const response = await fetchWithTimeout(url, {
+        method: "POST",
+        headers: auth.headers,
+        body: JSON.stringify({})
+      });
+      const data = await response.json().catch(() => []);
+      if (!response.ok || !Array.isArray(data)) {
+        return { data: [], error: data?.message || data?.hint || "Purchased ebooks could not be loaded." };
+      }
+      return { data, error: null };
+    } catch (e) {
+      return { data: [], error: getFetchErrorMessage(e, "Purchased ebooks could not be loaded.") };
+    }
+  },
+  prepareEbookAccess: async (ebookId, accessToken) => {
+    try {
+      const session = await supabase.auth.ensureAccessToken(accessToken);
+      if (session.error) return { error: session.error };
+      return await invokeEdgeFunction("ebook-access", {
+        accessToken: session.accessToken,
+        body: { ebook_id: ebookId }
+      });
+    } catch (e) {
+      return { error: e.message || "Ebook access could not be prepared." };
+    }
   },
   reportQuestion: async (payload) => {
     try {

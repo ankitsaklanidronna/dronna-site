@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { AIFeedbackCard } from '../components/AIFeedbackCard.jsx';
 import { MathText } from '../components/MathText.jsx';
 import { Navbar } from '../components/Navbar.jsx';
+import { QuestionText } from '../components/QuestionText.jsx';
 import { ShareBtn } from '../components/ShareBtn.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { getRouteSearchParams, useRouter } from '../context/RouterContext.jsx';
@@ -413,11 +414,7 @@ export function QuizPage({ setId }) {
                         <div className="flex items-start justify-between gap-3 mb-4">
                           <div className="flex items-start gap-3 flex-1">
                             <span className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 text-white mt-0.5" style={{background:"var(--navy)"}}>{originalIndex + 1}</span>
-                            <MathText
-                              as="div"
-                              content={q.question_text}
-                              className="font-semibold devanagari text-gray-800 leading-relaxed"
-                            />
+                            <QuestionText content={q.question_text} variant="review" />
                           </div>
                           <div className="flex items-center gap-2 flex-shrink-0">
                             <span className="text-xs font-black px-2 py-1 rounded-full" style={{background:sc.badgeBg, color:sc.badgeColor}}>{sc.badge}</span>
@@ -536,25 +533,25 @@ export function QuizPage({ setId }) {
   const secs = timeLeft % 60;
 
   return (
-    <div className="page bg-gray-50 min-h-screen">
-      <div className="bg-navy text-white p-4 sticky top-0 z-50 flex justify-between items-center shadow-lg" style={{background: 'var(--navy)'}}>
-        <div className="flex items-center gap-4">
+    <div className="page bg-gray-50 min-h-screen overflow-x-hidden">
+      <div className="bg-navy text-white px-3 py-3 sm:p-4 sticky top-0 z-50 grid grid-cols-[1fr_auto_1fr] items-center gap-2 shadow-lg" style={{background: 'var(--navy)'}}>
+        <div className="flex min-w-0 items-center gap-4">
           <button onClick={() => confirm("Do you want to leave this test?") && navigate(isPublicDemoMode ? "/demo" : "/practice")} className="text-white/70 hover:text-white"></button>
-          <span className="font-bold hidden md:inline">{set?.set_name}</span>
+          <span className="font-bold hidden md:inline truncate">{set?.set_name}</span>
         </div>
-        <div className="text-xl font-mono font-bold bg-white/10 px-4 py-1 rounded-lg">
+        <div className="text-lg sm:text-xl font-mono font-bold bg-white/10 px-3 sm:px-4 py-1 rounded-lg">
            {mins}:{secs < 10 ? '0'+secs : secs}
         </div>
-        <button className="bg-green-600 hover:bg-green-700 px-4 py-1 rounded font-bold text-sm" onClick={() => confirm("Do you want to submit this test?") && finishQuiz()}>SUBMIT</button>
+        <button className="justify-self-end bg-green-600 hover:bg-green-700 px-3 sm:px-4 py-1 rounded font-bold text-xs sm:text-sm" onClick={() => confirm("Do you want to submit this test?") && finishQuiz()}>SUBMIT</button>
       </div>
 
-      <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6 p-4">
+      <div className="w-full max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 px-3 py-4 sm:p-4">
         {/* Left: Question Area */}
-        <div className="lg:col-span-2 space-y-4">
-          <div className="card min-h-[400px]">
-            <div className="flex justify-between items-center mb-6">
+        <div className="lg:col-span-2 space-y-4 min-w-0 w-full">
+          <div className="card min-h-[400px] w-full max-w-full overflow-hidden px-4 py-5 sm:p-6">
+            <div className="flex flex-col items-start gap-3 mb-6 sm:flex-row sm:justify-between sm:items-center">
               <span className="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">Question {current + 1}</span>
-              <div className="flex items-center gap-3">
+              <div className="flex w-full flex-wrap items-center justify-between gap-2 sm:w-auto sm:justify-end sm:gap-3">
                 <span className="text-xs text-gray-400">Negative: 0.25</span>
                 <button
                   onClick={() => openReport(q)}
@@ -569,11 +566,7 @@ export function QuizPage({ setId }) {
               </div>
             </div>
             
-            <MathText
-              as="h2"
-              content={q.question_text}
-              className="text-xl font-bold mb-8 devanagari leading-relaxed text-navy"
-            />
+            <QuestionText content={q.question_text} variant="quiz" />
 
             <div className="space-y-3">
               {['A','B','C','D'].map(opt => {
@@ -582,7 +575,7 @@ export function QuizPage({ setId }) {
                 return (
                   <div key={opt} 
                     onClick={() => selectOption(opt)}
-                    className={`option-card flex items-center gap-4 transition-all ${isSelected ? 'selected ring-2 ring-orange-500 border-orange-500' : ''}`}>
+                    className={`option-card flex min-w-0 w-full items-center gap-3 sm:gap-4 transition-all ${isSelected ? 'selected ring-2 ring-orange-500 border-orange-500' : ''}`}>
                     <span className={`w-8 h-8 rounded-full flex items-center justify-center font-bold border-2 ${isSelected ? 'bg-orange-500 text-white border-orange-500' : 'text-gray-400 border-gray-200'}`}>{opt}</span>
                     <MathText
                       as="div"
@@ -595,31 +588,56 @@ export function QuizPage({ setId }) {
             </div>
           </div>
 
-          <div className="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm">
-            <button className="btn-outline px-6 py-2" disabled={current === 0} onClick={() => setCurrent(current-1)}> Back</button>
-            <button className={`px-6 py-2 rounded-lg font-bold border-2 transition-all ${markedForReview.has(q.id) ? 'bg-purple-600 border-purple-600 text-white' : 'border-purple-600 text-purple-600 hover:bg-purple-50'}`} 
+          <div className="grid w-full max-w-full grid-cols-2 gap-3 overflow-hidden bg-white p-3 sm:p-4 rounded-xl shadow-sm sm:flex sm:justify-between sm:items-center">
+            <button className="btn-outline justify-center px-4 sm:px-6 py-2" disabled={current === 0} onClick={() => setCurrent(current-1)}> Back</button>
+            <button className={`col-span-2 row-start-2 px-4 sm:px-6 py-2 rounded-lg font-bold border-2 transition-all sm:col-span-1 sm:row-auto ${markedForReview.has(q.id) ? 'bg-purple-600 border-purple-600 text-white' : 'border-purple-600 text-purple-600 hover:bg-purple-50'}`}
               onClick={toggleReview}>
               {markedForReview.has(q.id) ? 'Maked for Review ' : 'Mark for Review'}
             </button>
-            <button className="btn-navy px-8 py-2" onClick={() => current < questions.length - 1 ? setCurrent(current+1) : null}>Next </button>
+            <button className="btn-navy justify-center px-4 sm:px-8 py-2" onClick={() => current < questions.length - 1 ? setCurrent(current+1) : null}>Next </button>
           </div>
         </div>
 
         {/* Right: Palette Area */}
-        <div className="space-y-4">
-          <div className="card">
+        <div className="space-y-4 min-w-0 w-full">
+          <div className="card w-full max-w-full overflow-hidden px-4 py-5 sm:p-6">
             <h3 className="font-bold text-sm mb-4 uppercase text-gray-400">Question Palette</h3>
             <div className="grid grid-cols-5 gap-2">
               {questions.map((ques, i) => {
-                let statusClass = "bg-gray-100 text-gray-400"; // Not visited
-                if (userAnswers[ques.id]) statusClass = "bg-green-500 text-white"; // Answered
-                if (markedForReview.has(ques.id)) statusClass = "bg-purple-600 text-white"; // Review
-                if (current === i) statusClass += " ring-2 ring-offset-2 ring-navy shadow-lg";
+                const isCurrent = current === i;
+                const isAnswered = Boolean(userAnswers[ques.id]);
+                const isMarked = markedForReview.has(ques.id);
+                let paletteStyle = {
+                  background: "#F1F5F9",
+                  borderColor: "#CBD5E1",
+                  color: "#334155",
+                };
+                if (isAnswered) {
+                  paletteStyle = {
+                    background: "#16A34A",
+                    borderColor: "#16A34A",
+                    color: "#FFFFFF",
+                  };
+                }
+                if (isMarked) {
+                  paletteStyle = {
+                    background: "#7C3AED",
+                    borderColor: "#7C3AED",
+                    color: "#FFFFFF",
+                  };
+                }
+                if (isCurrent) {
+                  paletteStyle = {
+                    ...paletteStyle,
+                    boxShadow: `0 0 0 3px ${isMarked ? "#DDD6FE" : "#FDBA74"}, 0 10px 18px rgba(13, 27, 62, 0.16)`,
+                  };
+                }
 
                 return (
                   <button key={i} 
                     onClick={() => setCurrent(i)}
-                    className={`w-10 h-10 rounded-lg font-bold text-sm transition-all flex items-center justify-center ${statusClass}`}>
+                    className="w-10 h-10 rounded-lg border-2 font-bold text-sm transition-all flex items-center justify-center"
+                    style={paletteStyle}>
                     {i + 1}
                   </button>
                 );

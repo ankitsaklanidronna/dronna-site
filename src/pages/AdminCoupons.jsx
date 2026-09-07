@@ -15,7 +15,9 @@ export const EMPTY_COUPON_FORM = {
   starts_at: "",
   expires_at: "",
   active: true,
-  folder_ids: []
+  product_scope: "all",
+  folder_ids: [],
+  ebook_ids: []
 };
 
 export function toDatetimeLocalValue(value) {
@@ -35,6 +37,7 @@ export function AdminCoupons() {
   const { user } = useAuth();
   const [coupons, setCoupons] = useState([]);
   const [folders, setFolders] = useState([]);
+  const [ebooks, setEbooks] = useState([]);
   const [form, setForm] = useState(EMPTY_COUPON_FORM);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -44,19 +47,24 @@ export function AdminCoupons() {
 
   const loadData = async () => {
     setLoading(true);
-    const [couponResult, folderResult] = await Promise.all([
+    const [couponResult, folderResult, ebookResult] = await Promise.all([
       supabase.adminWrite("list_coupons", {}, user?.access_token),
-      supabase.getFolders()
+      supabase.getFolders(),
+      supabase.adminWrite("list_ebook_discounts", {}, user?.access_token)
     ]);
     setCoupons(couponResult?.data || []);
     setFolders(folderResult.ok ? folderResult.data : []);
-    if (couponResult?.error) setMsg("ERR: " + couponResult.error);
+    setEbooks(ebookResult?.data || []);
+    if (couponResult?.error || ebookResult?.error) setMsg("ERR: " + (couponResult?.error || ebookResult?.error));
     setLoading(false);
   };
 
-  const paidFolders = folders.filter((folder) => folder.parent_id && folder.is_paid);
+  const paidFolders = folders.filter((folder) => folder.is_paid);
   const courseOptions = paidFolders.length > 0 ? paidFolders : folders.filter((folder) => folder.parent_id);
   const folderNameById = Object.fromEntries(folders.map((folder) => [folder.id, folder.name]));
+  const ebookNameById = Object.fromEntries(ebooks.map((ebook) => [ebook.id, ebook.title]));
+  const showCourseTargets = form.product_scope !== "ebook";
+  const showEbookTargets = form.product_scope !== "course";
 
   const resetForm = () => {
     setForm(EMPTY_COUPON_FORM);
@@ -69,6 +77,24 @@ export function AdminCoupons() {
       folder_ids: current.folder_ids.includes(folderId)
         ? current.folder_ids.filter((id) => id !== folderId)
         : [...current.folder_ids, folderId]
+    }));
+  };
+
+  const toggleEbookId = (ebookId) => {
+    setForm((current) => ({
+      ...current,
+      ebook_ids: current.ebook_ids.includes(ebookId)
+        ? current.ebook_ids.filter((id) => id !== ebookId)
+        : [...current.ebook_ids, ebookId]
+    }));
+  };
+
+  const updateProductScope = (productScope) => {
+    setForm((current) => ({
+      ...current,
+      product_scope: productScope,
+      folder_ids: productScope === "ebook" ? [] : current.folder_ids,
+      ebook_ids: productScope === "course" ? [] : current.ebook_ids
     }));
   };
 
@@ -85,7 +111,9 @@ export function AdminCoupons() {
       starts_at: toDatetimeLocalValue(coupon.starts_at),
       expires_at: toDatetimeLocalValue(coupon.expires_at),
       active: coupon.active !== false,
-      folder_ids: coupon.folder_ids || []
+      product_scope: coupon.product_scope || "all",
+      folder_ids: coupon.folder_ids || [],
+      ebook_ids: coupon.ebook_ids || []
     });
     setMsg("");
   };
@@ -105,7 +133,10 @@ export function AdminCoupons() {
       min_order_inr: toNonNegativeInt(form.min_order_inr, 0),
       usage_limit: toNonNegativeInt(form.usage_limit, 0),
       starts_at: datetimeLocalToIso(form.starts_at),
-      expires_at: datetimeLocalToIso(form.expires_at)
+      expires_at: datetimeLocalToIso(form.expires_at),
+      product_scope: form.product_scope || "all",
+      folder_ids: form.product_scope === "ebook" ? [] : form.folder_ids,
+      ebook_ids: form.product_scope === "course" ? [] : form.ebook_ids
     };
     const result = await supabase.adminWrite(form.id ? "update_coupon" : "create_coupon", payload, user?.access_token);
     setSaving(false);
@@ -179,6 +210,14 @@ export function AdminCoupons() {
           </div>
 
           <div className="md:col-span-2">
+            <label>Applies To</label>
+            <select value={form.product_scope} onChange={(event) => updateProductScope(event.target.value)}>
+              <option value="all">Courses + Ebooks</option>
+              <option value="course">Courses only</option>
+              <option value="ebook">Ebooks only</option>
+            </select>
+          </div>
+          <div className="md:col-span-2">
             <label>Discount Type</label>
             <select value={form.discount_type} onChange={(event) => setForm({ ...form, discount_type: event.target.value })}>
               <option value="percent">Percent</option>
@@ -242,6 +281,7 @@ export function AdminCoupons() {
               onChange={(event) => setForm({ ...form, expires_at: event.target.value })}
             />
           </div>
+          {showCourseTargets && (
           <div className="md:col-span-6">
             <label>Applicable Courses</label>
             <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
@@ -266,6 +306,33 @@ export function AdminCoupons() {
               )}
             </div>
           </div>
+          )}
+          {showEbookTargets && (
+          <div className="md:col-span-6">
+            <label>Applicable Ebooks</label>
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+              <div className="mb-2 text-xs font-bold text-gray-500">Leave every ebook unchecked to apply this coupon to all ebooks.</div>
+              {ebooks.length === 0 ? (
+                <div className="text-sm font-bold text-gray-500">Create ebooks first.</div>
+              ) : (
+                <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                  {ebooks.map((ebook) => (
+                    <label key={ebook.id} className="flex cursor-pointer items-center gap-2 rounded-lg bg-white px-3 py-2 text-sm font-bold text-gray-700">
+                      <input
+                        type="checkbox"
+                        checked={form.ebook_ids.includes(ebook.id)}
+                        onChange={() => toggleEbookId(ebook.id)}
+                        className="h-4 w-4 accent-orange-500"
+                      />
+                      <span>{ebook.title}</span>
+                      <span className="ml-auto rounded bg-orange-100 px-2 py-0.5 text-[10px] text-orange-700">EBOOK</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+          )}
           <div className="md:col-span-6">
             <button className="btn-primary w-full justify-center" onClick={saveCoupon} disabled={saving}>
               {saving ? "Saving..." : form.id ? "Update Coupon" : "Create Coupon"}
@@ -294,6 +361,9 @@ export function AdminCoupons() {
                       <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${coupon.active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
                         {coupon.active ? "ACTIVE" : "PAUSED"}
                       </span>
+                      <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-black text-blue-700">
+                        {coupon.product_scope === "course" ? "COURSES" : coupon.product_scope === "ebook" ? "EBOOKS" : "COURSES + EBOOKS"}
+                      </span>
                       <span className="text-sm font-black text-navy">{formatCouponDiscount(coupon)}</span>
                     </div>
                     {coupon.title && <div className="mt-2 text-sm font-bold text-gray-700">{coupon.title}</div>}
@@ -303,9 +373,18 @@ export function AdminCoupons() {
                       {coupon.max_discount_inr > 0 && <span>Cap Rs {coupon.max_discount_inr}</span>}
                     </div>
                     <div className="mt-2 text-xs font-semibold text-gray-500">
-                      {(coupon.folder_ids || []).length === 0
-                        ? "Applicable on all paid courses"
-                        : `Courses: ${(coupon.folder_ids || []).map((id) => folderNameById[id] || "Course").join(", ")}`}
+                      {coupon.product_scope === "ebook"
+                        ? "Courses: not applicable"
+                        : (coupon.folder_ids || []).length === 0
+                          ? "Courses: all paid courses"
+                          : `Courses: ${(coupon.folder_ids || []).map((id) => folderNameById[id] || "Course").join(", ")}`}
+                    </div>
+                    <div className="mt-1 text-xs font-semibold text-gray-500">
+                      {coupon.product_scope === "course"
+                        ? "Ebooks: not applicable"
+                        : (coupon.ebook_ids || []).length === 0
+                          ? "Ebooks: all ebooks"
+                          : `Ebooks: ${(coupon.ebook_ids || []).map((id) => ebookNameById[id] || "Ebook").join(", ")}`}
                     </div>
                   </div>
                   <div className="flex gap-2">

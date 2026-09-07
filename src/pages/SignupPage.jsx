@@ -67,6 +67,11 @@ export function SignupPage() {
         return true;
       }
 
+      await supabase.sendWelcomeEmail({
+        name: form.name,
+        exam_target: form.exam_target
+      }, sessionAccessToken);
+
       await login({
         email: normalizedEmail,
         name: form.name,
@@ -140,6 +145,11 @@ export function SignupPage() {
         setError(" Signup completed, but the student record could not be saved: " + studentInsert.error);
         setLoading(false); return;
       }
+
+      await supabase.sendWelcomeEmail({
+        name: form.name,
+        exam_target: form.exam_target
+      }, sessionAccessToken);
 
       await login({
         email: normalizedEmail,

@@ -1,5 +1,7 @@
 export * from './AdminCoupons.jsx';
 export * from './AdminDaily.jsx';
+export * from './AdminEbookDiscounts.jsx';
+export * from './AdminEmailCampaigns.jsx';
 export * from './AdminFolders.jsx';
 export * from './AdminPanel.jsx';
 export * from './AdminQuestions.jsx';
@@ -9,6 +11,7 @@ export * from './AdminStudents.jsx';
 export * from './DailyChallenge.jsx';
 export * from './Dashboard.jsx';
 export * from './DemoPage.jsx';
+export * from './EbookStorePage.jsx';
 export * from './LandingPage.jsx';
 export * from './LeaderboardPage.jsx';
 export * from './LoginPage.jsx';

@@ -1,5 +1,17 @@
 project_id = "dronna-site"
 
+[auth]
+site_url = "http://localhost:3000"
+additional_redirect_urls = []
+
+[auth.mfa.totp]
+enroll_enabled = true
+verify_enabled = true
+
+[auth.email]
+max_frequency = "1m0s"
+otp_length = 8
+
 [functions.admin-status]
 verify_jwt = false
 
@@ -14,3 +26,10 @@ verify_jwt = false
 
 [functions.razorpay-webhook]
 verify_jwt = false
+
+[functions.send-email]
+verify_jwt = false
+
+[auth.email.template.recovery]
+subject = "Your Dronna password reset code"
+content_path = "./supabase/templates/recovery.html"

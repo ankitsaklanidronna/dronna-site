@@ -9,6 +9,11 @@ export function getCoursePublicShareUrl(folder = {}) {
   return getShareUrl(`/${courseId}`);
 }
 
+export function getEbookPublicShareUrl(ebook = {}) {
+  const ebookId = ebook?.id ? `?ebook=${encodeURIComponent(ebook.id)}` : "";
+  return getShareUrl(`/ebooks${ebookId}`);
+}
+
 export function buildPromoShareText(lines = []) {
   return [
     ...lines,
@@ -34,6 +39,17 @@ export function buildCourseShareText(folder = {}, { setCount = 0, questionCount 
   if (statParts.length) details.push(`Includes ${statParts.join(" and ")}.`);
   if (hasPaidContent && price) details.push(`Price: Rs ${price}.`);
   details.push("Practice for UKPSC and UKSSSC with mock tests, progress tracking, and AI Coach.");
+
+  return details.join("\n");
+}
+
+export function buildEbookShareText(ebook = {}, { price } = {}) {
+  const title = (ebook.title || "Dronna Ebook").trim();
+  const details = [`Check out ${title} on Dronna.`];
+
+  if (ebook.subtitle) details.push(String(ebook.subtitle).trim());
+  if (price > 0) details.push(`Price: Rs ${price}.`);
+  details.push("Buy protected exam-ready ebooks with your Dronna account.");
 
   return details.join("\n");
 }

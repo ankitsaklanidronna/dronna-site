@@ -1,16 +1,26 @@
 import { useEffect, useState } from 'react';
 import { BrandLockup } from '../components/BrandLockup.jsx';
 import { CourseFeatureList, buildCourseFeatureRows, getCourseCardTheme } from '../components/CourseFeatureList.jsx';
-import { LaunchPromoTicker } from '../components/LaunchPromoTicker.jsx';
 import { ShareBtn } from '../components/ShareBtn.jsx';
 import { getRouteSearchParams, useRouter } from '../context/RouterContext.jsx';
-import { getPublicLandingStats } from '../services/supabaseClient.js';
+import { getPublicLandingStats, supabase } from '../services/supabaseClient.js';
 import { openLegalPage } from '../utils/navigation.js';
 import { getCoursePriceLabel, getCoursePricing } from '../utils/pricing.js';
 import { APP_SHARE_TITLE, buildCourseShareText, getCoursePublicShareUrl, getCourseShareName } from '../utils/share.js';
 
+const FEATURED_EBOOK_ID = "9efb8672-fad8-4bc1-8191-93c1c202d34c";
+const FEATURED_EBOOK_FALLBACK = {
+  id: FEATURED_EBOOK_ID,
+  title: "उत्तराखंड: एक राजनीतिक अध्ययन",
+  subtitle: "उत्तराखंड के प्राचीन, मध्यकालीन और आधुनिक इतिहास का समग्र अध्ययन",
+  cover_url: "https://rzacvumxsergagbqnwsz.supabase.co/storage/v1/object/public/cover/coverhistory.png",
+  price_inr: 249,
+  mrp_inr: 399
+};
+
 export function SimpleLandingPage() {
   const { navigate, page } = useRouter();
+  const [featuredEbook, setFeaturedEbook] = useState(FEATURED_EBOOK_FALLBACK);
   const [publicStats, setPublicStats] = useState({
     questions: null,
     practiceSets: null,
@@ -30,6 +40,11 @@ export function SimpleLandingPage() {
     getPublicLandingStats().then((stats) => {
       if (!alive) return;
       setPublicStats({ ...stats, loaded: true });
+    });
+    supabase.getPublicEbooks().then((result) => {
+      if (!alive) return;
+      const ebook = (result.data || []).find((item) => item.id === FEATURED_EBOOK_ID);
+      if (ebook) setFeaturedEbook({ ...FEATURED_EBOOK_FALLBACK, ...ebook });
     });
     return () => { alive = false; };
   }, []);
@@ -57,6 +72,7 @@ export function SimpleLandingPage() {
     { title: "Daily Challenge", detail: "Build consistency with a short daily question set.", path: "/daily", tone: "var(--saffron-dark)" },
     { title: "Free Practice Sets", detail: "Try demo sets before choosing a course.", path: "/demo", tone: "#2563EB" },
     { title: "Syllabus", detail: "Review UKPSC and UKSSSC syllabus resources in one place.", path: "/syllabus", tone: "#0F766E" },
+    { title: "Ebook Store", detail: "Buy protected study ebooks with account-based access.", path: "/ebooks", tone: "#B45309" },
     { title: "Leaderboard", detail: "Compare scores and track competitive progress.", path: "/leaderboard", tone: "#7C3AED" },
   ];
 
@@ -131,6 +147,14 @@ export function SimpleLandingPage() {
   const scrollToLandingSection = (sectionId) => {
     document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
+  const openFeaturedEbook = () => {
+    navigate(`/ebooks?ebook=${encodeURIComponent(featuredEbook.id)}`);
+  };
+  const featuredPrice = Number(featuredEbook.price_inr) || FEATURED_EBOOK_FALLBACK.price_inr;
+  const featuredMrp = Number(featuredEbook.mrp_inr) || featuredPrice;
+  const featuredDiscount = featuredMrp > featuredPrice
+    ? Math.round(((featuredMrp - featuredPrice) / featuredMrp) * 100)
+    : 0;
 
   useEffect(() => {
     if (!publicStats.loaded) return;
@@ -209,10 +233,10 @@ export function SimpleLandingPage() {
     return (
       <article
         key={folder.id}
-        className="group flex min-h-[470px] flex-col overflow-hidden rounded-lg border bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl"
+        className="group flex min-h-[420px] flex-col overflow-hidden rounded-lg border bg-white shadow-sm transition duration-300 hover:shadow-xl sm:min-h-[470px] sm:hover:-translate-y-1"
         style={{borderColor:theme.line}}
       >
-        <div className="relative min-h-[150px] p-5 text-white" style={{background:theme.cover}}>
+        <div className="relative min-h-[128px] p-4 text-white sm:min-h-[150px] sm:p-5" style={{background:theme.cover}}>
           <div className="flex items-start justify-between gap-3">
             <span className="rounded-full bg-white/16 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] ring-1 ring-white/25">
               {hasPaidContent ? "Premium Course" : "Free Course"}
@@ -221,13 +245,13 @@ export function SimpleLandingPage() {
               <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>school</span>
             </span>
           </div>
-          <div className="mt-8">
+          <div className="mt-6 sm:mt-8">
             <p className="text-xs font-black uppercase tracking-[0.22em] text-white/75">Dronna Course</p>
-            <h3 className="mt-2 text-2xl font-black leading-tight text-white">{folder.name}</h3>
+            <h3 className="mt-2 text-xl sm:text-2xl font-black leading-tight text-white">{folder.name}</h3>
           </div>
         </div>
 
-        <div className="flex flex-1 flex-col p-4">
+        <div className="flex flex-1 flex-col p-3.5 sm:p-4">
           <div className="grid grid-cols-2 gap-2 text-center">
             <div className="rounded-lg px-2 py-3" style={{background:theme.soft}}>
               <div className="text-xl font-black" style={{color:theme.ink}}>{formatCount(nestedSetCount)}</div>
@@ -290,6 +314,7 @@ export function SimpleLandingPage() {
             <button type="button" className="hover:text-orange-600" onClick={() => scrollToLandingSection("choose-course")}>Choose Course</button>
             <button type="button" className="hover:text-orange-600" onClick={() => scrollToLandingSection("free-practice")}>Free Practice</button>
             <button className="hover:text-orange-600" onClick={() => navigate("/syllabus")}>Syllabus</button>
+            <button className="hover:text-orange-600" onClick={() => navigate("/ebooks")}>Ebooks</button>
             <button className="hover:text-orange-600" onClick={() => navigate("/demo")}>Demo</button>
             <button className="hover:text-orange-600" onClick={() => openLegalPage("/contact.html")}>Contact</button>
           </div>
@@ -299,55 +324,81 @@ export function SimpleLandingPage() {
           </div>
         </div>
       </nav>
-      <LaunchPromoTicker onClick={() => scrollToLandingSection("choose-course")} />
+      <section className="relative overflow-hidden border-b-[6px] border-[#F59E0B] bg-[#103C36] text-white">
+        <img
+          src={featuredEbook.cover_url}
+          alt=""
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-y-0 right-0 h-full w-2/3 object-cover object-center opacity-[0.08]"
+        />
+        <div className="absolute inset-y-0 left-0 w-2 bg-[#EF6C35]"></div>
 
-      <section className="relative overflow-hidden bg-navy pt-16 pb-16 lg:pt-24 lg:pb-24">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_120%,var(--saffron-dark)_0%,transparent_46%)] opacity-20"></div>
-        <div className="absolute inset-0 opacity-10" style={{backgroundImage:"linear-gradient(#ffffff 1px, transparent 1px), linear-gradient(90deg, #ffffff 1px, transparent 1px)", backgroundSize:"32px 32px"}}></div>
-
-        <div className="relative max-w-6xl mx-auto px-4 grid lg:grid-cols-[1fr_0.9fr] gap-12 items-center">
-          <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/20 bg-white/[0.08] text-xs font-black uppercase tracking-wider mb-6 text-saffron-light">
-              <span className="w-2 h-2 rounded-full bg-saffron"></span>
-              Uttarakhand Exam Practice Platform
+        <div className="relative mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)_96px] items-center gap-x-4 gap-y-6 px-5 py-9 min-[360px]:grid-cols-[minmax(0,1fr)_124px] sm:grid-cols-[minmax(0,1fr)_150px] sm:px-6 sm:py-11 md:grid-cols-[1.08fr_0.72fr] md:gap-10 md:px-8 md:py-12 lg:min-h-[560px] lg:gap-16 lg:py-14">
+          <div className="min-w-0">
+            <div className="mb-4 inline-flex items-center gap-2 rounded-md border border-[#F9C74F]/50 bg-[#173F48] px-3 py-1.5 text-[10px] font-black uppercase text-[#FFD166] sm:text-xs">
+              <span className="material-symbols-outlined text-base">campaign</span>
+              नई ईबुक रिलीज
             </div>
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-headline font-black text-white leading-tight mb-6">
-              Prepare for UKPSC and UKSSSC with structured practice.
+
+            <p className="mb-2 text-xs font-black uppercase text-[#F7C95C] sm:text-sm">Dronna Exclusive</p>
+            <h1 className="font-hindi text-[2rem] font-black leading-[1.22] text-white sm:text-4xl md:text-5xl lg:text-6xl">
+              {featuredEbook.title}
             </h1>
-            <p className="text-lg md:text-xl mb-8 leading-relaxed text-slate-200/85">
-              Start with a no-login demo test, then choose the course you need. Every course keeps practice, progress, and AI Performance Analyzer together.
+            <p className="mt-3 hidden max-w-2xl font-hindi text-sm font-bold leading-6 text-[#D7ECE7] min-[360px]:block sm:mt-4 sm:text-base md:text-lg md:leading-8">
+              {featuredEbook.subtitle}
             </p>
-            <div className="flex flex-col sm:flex-row gap-4">
-              <button type="button" onClick={() => navigate("/demo")} className="btn-primary justify-center py-4 text-base font-black">
-                Try Demo Test
+
+            <div className="mt-5 flex flex-wrap gap-2 text-[10px] font-black uppercase text-white sm:mt-6 sm:text-xs">
+              <span className="rounded-md border border-white/20 bg-white/10 px-2.5 py-2">PDF Ebook</span>
+              <span className="rounded-md border border-white/20 bg-white/10 px-2.5 py-2">Email Protected</span>
+              <span className="hidden rounded-md border border-white/20 bg-white/10 px-2.5 py-2 sm:inline-flex">Instant Access</span>
+            </div>
+
+            <div className="mt-6 flex flex-wrap items-end gap-x-3 gap-y-1 sm:mt-7">
+              <span className="text-3xl font-black text-[#FFD166] sm:text-4xl">₹{featuredPrice}</span>
+              {featuredMrp > featuredPrice && (
+                <span className="pb-1 text-sm font-bold text-white/55 line-through sm:text-base">₹{featuredMrp}</span>
+              )}
+              {featuredDiscount > 0 && (
+                <span className="mb-1 rounded-md bg-[#E9F7EF] px-2 py-1 text-[10px] font-black text-[#147A4A] sm:text-xs">
+                  {featuredDiscount}% OFF
+                </span>
+              )}
+            </div>
+
+            <div className="mt-5 flex flex-col gap-3 sm:mt-6 sm:flex-row">
+              <button
+                type="button"
+                onClick={openFeaturedEbook}
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-[#EF6C35] px-5 py-3 text-sm font-black text-white shadow-[0_12px_28px_rgba(0,0,0,0.22)] transition hover:-translate-y-0.5 hover:bg-[#D95824] sm:text-base"
+              >
+                <span className="material-symbols-outlined text-xl">shopping_bag</span>
+                अभी खरीदें - ₹{featuredPrice}
               </button>
-              <button type="button" onClick={() => scrollToLandingSection("choose-course")} className="justify-center rounded-lg border border-white/30 px-6 py-4 text-base font-black text-white transition hover:bg-white/10 inline-flex">
-                Choose Course
+              <button
+                type="button"
+                onClick={() => navigate("/ebooks")}
+                className="hidden min-h-12 items-center justify-center gap-2 rounded-lg border border-white/30 px-5 py-3 text-sm font-black text-white transition hover:bg-white/10 min-[360px]:inline-flex sm:text-base"
+              >
+                सभी ईबुक देखें
+                <span className="material-symbols-outlined text-xl">arrow_forward</span>
               </button>
             </div>
+            <p className="mt-3 hidden text-xs font-bold text-[#BFD9D3] sm:block">
+              सुरक्षित भुगतान | खरीद के बाद तुरंत एक्सेस | PDF पासवर्ड आपका लॉगिन ईमेल
+            </p>
           </div>
 
-          <div className="hidden lg:block relative">
-            <div className="absolute inset-0 rounded-2xl blur-2xl opacity-30 rotate-3" style={{background:"linear-gradient(135deg, #F97316, #7C3AED)"}}></div>
-            <div className="relative bg-white rounded-2xl shadow-2xl border border-line-soft p-6 -rotate-1 transition-all duration-500 hover:rotate-0">
-              <div className="flex justify-between items-start gap-4 border-b border-b-line-soft pb-4 mb-5">
-                <div>
-                  <h3 className="font-black text-lg text-navy">UKSSSC VDO Full Mock Test</h3>
-                  <p className="text-xs text-gray-500 mt-1">100 Questions | 120 Minutes</p>
-                </div>
-                <span className="rounded-full px-3 py-1 text-xs font-bold" style={{background:"#DCFCE7", color:"#15803D"}}>Live</span>
-              </div>
-              <div className="space-y-4">
-                <div className="h-4 bg-gray-100 rounded w-3/4"></div>
-                <div className="h-4 bg-gray-100 rounded w-full"></div>
-                <div className="h-4 bg-gray-100 rounded w-5/6"></div>
-                <div className="grid grid-cols-2 gap-3 mt-6">
-                  <div className="border-2 border-gray-100 rounded-lg p-3 text-sm text-gray-400">A. Option 1</div>
-                  <div className="border-2 rounded-lg p-3 text-sm font-bold" style={{borderColor:"#F97316", background:"#FFF7ED", color:"#C2410C"}}>B. Option 2</div>
-                  <div className="border-2 border-gray-100 rounded-lg p-3 text-sm text-gray-400">C. Option 3</div>
-                  <div className="border-2 border-gray-100 rounded-lg p-3 text-sm text-gray-400">D. Option 4</div>
-                </div>
-              </div>
+          <div className="relative mx-auto w-full max-w-[290px] self-center md:max-w-[330px]">
+            <div className="absolute -bottom-3 left-3 right-0 top-4 rounded-md bg-[#071F24] sm:-bottom-4 sm:left-5"></div>
+            <img
+              src={featuredEbook.cover_url}
+              alt={`${featuredEbook.title} ebook cover`}
+              className="relative aspect-[3/4] w-full rounded-md object-cover shadow-[0_24px_50px_rgba(0,0,0,0.38)] ring-1 ring-white/25"
+            />
+            <div className="absolute -bottom-4 -left-3 hidden rounded-md border-2 border-[#103C36] bg-[#FFD166] px-3 py-2 text-center text-[#17313A] shadow-lg sm:block md:-left-8 md:px-4">
+              <div className="text-[10px] font-black uppercase">Launch Price</div>
+              <div className="text-xl font-black">₹{featuredPrice}</div>
             </div>
           </div>
         </div>
@@ -433,7 +484,7 @@ export function SimpleLandingPage() {
                             <span className="material-symbols-outlined text-xl" style={{ fontVariationSettings: "'FILL' 1" }}>school</span>
                           </span>
                           <span className="min-w-0">
-                            <span className="block truncate font-black">{folder.name}</span>
+                    <span className="block truncate font-black">{folder.name}</span>
                             <span className="mt-0.5 block text-[10px] font-black uppercase tracking-wide" style={{color:isActive ? theme.accentDark : "#94A3B8"}}>
                               {setCount} sets
                             </span>
@@ -448,7 +499,7 @@ export function SimpleLandingPage() {
                 </div>
               </div>
 
-              <div className="rounded-lg border border-line bg-slate-50 p-4 md:p-5">
+              <div className="rounded-lg border border-line bg-slate-50 p-3.5 sm:p-4 md:p-5">
                 <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                   <div>
                     <p className="text-xs font-black uppercase tracking-wider text-saffron-dark">Available Courses</p>
@@ -515,7 +566,7 @@ export function SimpleLandingPage() {
             </div>
             <button className="btn-outline w-fit" onClick={() => navigate("/demo")}>Try Demo Without Login</button>
           </div>
-          <div className="grid md:grid-cols-4 gap-4">
+          <div className="grid md:grid-cols-5 gap-4">
             {freePracticeOptions.map((item) => (
               <button key={item.title} className="rounded-lg border border-line bg-white p-5 text-left transition hover:-translate-y-1 hover:shadow-lg" onClick={() => navigate(item.path)}>
                 <span className="rounded-lg px-3 py-2 text-xs font-black text-white" style={{background:item.tone}}>{item.title.slice(0, 2).toUpperCase()}</span>
@@ -549,6 +600,7 @@ export function SimpleLandingPage() {
           <div className="flex flex-wrap gap-4 text-sm font-bold text-muted">
             <button onClick={() => navigate("/login")}>Login</button>
             <button onClick={() => navigate("/syllabus")}>Syllabus</button>
+            <button onClick={() => navigate("/ebooks")}>Ebooks</button>
             <button onClick={() => openLegalPage("/terms.html")}>Terms</button>
             <button onClick={() => openLegalPage("/privacy-policy.html")}>Privacy</button>
             <button onClick={() => openLegalPage("/refund-policy.html")}>Refunds</button>

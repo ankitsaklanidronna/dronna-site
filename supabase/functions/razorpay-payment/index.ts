@@ -1,4 +1,5 @@
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { sendCoursePurchaseEmail } from "../_shared/transactional-email.ts";
 
 type PaymentRequest = {
   action: "create_order" | "verify_payment" | "validate_coupon";
@@ -44,6 +45,10 @@ function getCourseAmountInr(folder: Record<string, unknown>, fallback: number) {
   return priceInr;
 }
 
+function getEbookAmountInr(ebook: Record<string, unknown>) {
+  return toInt(String(ebook.price_inr || ""), 0);
+}
+
 function calculateCouponDiscountInr(coupon: Record<string, unknown>, amountInr: number) {
   const discountType = String(coupon.discount_type || "percent");
   const discountValue = Number.parseInt(String(coupon.discount_value || "0"), 10) || 0;
@@ -60,7 +65,7 @@ function calculateCouponDiscountInr(coupon: Record<string, unknown>, amountInr: 
   return Math.max(0, Math.min(discountInr, Math.max(0, amountInr - 1)));
 }
 
-async function validateCoupon(adminClient: any, couponCode: string, folderId: string, amountInr: number) {
+async function validateCoupon(adminClient: any, couponCode: string, folderId: string | null, ebookId: string | null, amountInr: number, productType = "course") {
   const code = normalizeCouponCode(couponCode);
   if (!code) {
     return {
@@ -72,7 +77,7 @@ async function validateCoupon(adminClient: any, couponCode: string, folderId: st
 
   const { data: coupon, error } = await adminClient
     .from("coupon_codes")
-    .select("id, code, title, discount_type, discount_value, max_discount_inr, min_order_inr, active, starts_at, expires_at, usage_limit, used_count")
+    .select("id, code, title, discount_type, discount_value, max_discount_inr, min_order_inr, active, starts_at, expires_at, usage_limit, used_count, product_scope")
     .eq("code", code)
     .maybeSingle();
 
@@ -94,14 +99,36 @@ async function validateCoupon(adminClient: any, couponCode: string, folderId: st
     return { error: `Coupon requires minimum order of Rs ${coupon.min_order_inr}` };
   }
 
+  const productScope = String(coupon.product_scope || "all");
+  if (productScope === "ebook" && productType !== "ebook") {
+    return { error: "Coupon is only applicable on ebooks" };
+  }
+  if (productScope === "course" && productType === "ebook") {
+    return { error: "Coupon is not applicable on ebooks" };
+  }
+
   const { data: links, error: linksError } = await adminClient
     .from("coupon_course_folders")
     .select("folder_id")
     .eq("coupon_id", coupon.id);
   if (linksError) return { error: linksError.message };
 
-  if (Array.isArray(links) && links.length > 0 && !links.some((link) => String(link.folder_id) === folderId)) {
-    return { error: "Coupon is not applicable on this course" };
+  const { data: ebookLinks, error: ebookLinksError } = await adminClient
+    .from("coupon_ebooks")
+    .select("ebook_id")
+    .eq("coupon_id", coupon.id);
+  if (ebookLinksError) return { error: ebookLinksError.message };
+
+  if (productType !== "ebook" && Array.isArray(links) && links.length > 0) {
+    if (!folderId || !links.some((link) => String(link.folder_id) === folderId)) {
+      return { error: "Coupon is not applicable on this course" };
+    }
+  }
+
+  if (productType === "ebook" && Array.isArray(ebookLinks) && ebookLinks.length > 0) {
+    if (!ebookId || !ebookLinks.some((link) => String(link.ebook_id) === ebookId)) {
+      return { error: "Coupon is not applicable on this ebook" };
+    }
   }
 
   const discountInr = calculateCouponDiscountInr(coupon, amountInr);
@@ -174,6 +201,52 @@ async function getVerifiedUser(req: Request) {
   return { adminClient, user, email: normalizeEmail(user.email) };
 }
 
+async function getStudentName(adminClient: any, email: string) {
+  const { data } = await adminClient
+    .from("students")
+    .select("full_name")
+    .eq("email", email)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  return String(data?.full_name || "").trim();
+}
+
+async function getCourseName(adminClient: any, folderId: string | null) {
+  if (!folderId) return "";
+  const { data } = await adminClient
+    .from("folders")
+    .select("name")
+    .eq("id", folderId)
+    .maybeSingle();
+  return String(data?.name || "").trim();
+}
+
+async function sendPurchaseEmailSafely(adminClient: any, details: {
+  email: string;
+  folderId?: string | null;
+  amountInr?: number | string | null;
+  orderId?: string;
+  paymentId?: string;
+}) {
+  try {
+    const [studentName, courseName] = await Promise.all([
+      getStudentName(adminClient, details.email),
+      getCourseName(adminClient, details.folderId || null),
+    ]);
+    await sendCoursePurchaseEmail(adminClient, {
+      email: details.email,
+      name: studentName,
+      courseName,
+      amountInr: details.amountInr,
+      orderId: details.orderId,
+      paymentId: details.paymentId,
+    });
+  } catch (error) {
+    console.error("Purchase email failed", error);
+  }
+}
+
 Deno.serve(async (req) => {
   try {
     if (req.method === "OPTIONS") return json({ ok: true });
@@ -186,6 +259,135 @@ Deno.serve(async (req) => {
 
     if (action === "create_order" || action === "validate_coupon") {
       const plan = String(payload.plan || "pro");
+      const productType = String(payload.product_type || (payload.ebook_id ? "ebook" : "course"));
+
+      if (productType === "ebook" || plan === "ebook") {
+        const ebookId = payload.ebook_id ? String(payload.ebook_id) : "";
+        const couponCode = normalizeCouponCode(String(payload.coupon_code || ""));
+        if (!ebookId) return json({ error: "Missing ebook for this payment" }, 400);
+
+        const { data: ebookRow, error: ebookLookupError } = await adminClient
+          .from("ebooks")
+          .select("id, title, price_inr, mrp_inr, is_active")
+          .eq("id", ebookId)
+          .maybeSingle();
+
+        if (ebookLookupError) return json({ error: ebookLookupError.message }, 400);
+        if (!ebookRow || !ebookRow.is_active) return json({ error: "Ebook was not found" }, 400);
+
+        const alreadyOwned = await adminClient
+          .from("ebook_purchases")
+          .select("id")
+          .eq("ebook_id", ebookId)
+          .eq("student_email", email)
+          .eq("status", "active")
+          .maybeSingle();
+        if (alreadyOwned.error) return json({ error: alreadyOwned.error.message }, 400);
+        if (alreadyOwned.data?.id) {
+          return json({ error: "This ebook is already active on your account" }, 400);
+        }
+
+        const amountInr = getEbookAmountInr(ebookRow);
+        if (amountInr <= 0) return json({ error: "Ebook price is not configured" }, 400);
+
+        const couponValidation: any = await validateCoupon(adminClient, couponCode, null, ebookId, amountInr, "ebook");
+        if ("error" in couponValidation && couponValidation.error) {
+          return json({ error: couponValidation.error }, 400);
+        }
+
+        const finalAmountInr = couponValidation.finalAmountInr;
+        const discountInr = couponValidation.discountInr;
+        const coupon = couponValidation.coupon;
+
+        if (action === "validate_coupon") {
+          return json({
+            ok: true,
+            ebook_id: ebookId,
+            original_amount_inr: amountInr,
+            discount_inr: discountInr,
+            final_amount_inr: finalAmountInr,
+            coupon: coupon ? {
+              id: coupon.id,
+              code: coupon.code,
+              title: coupon.title,
+              discount_type: coupon.discount_type,
+              discount_value: coupon.discount_value,
+            } : null,
+          });
+        }
+
+        const razorpayKeyId = getEnv("RAZORPAY_KEY_ID");
+        const razorpayKeySecret = getEnv("RAZORPAY_KEY_SECRET");
+        if (!razorpayKeyId || !razorpayKeySecret) {
+          return json({ error: "Razorpay keys are not configured" }, 500);
+        }
+
+        const receipt = `dronna_ebook_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`;
+        const orderResponse = await fetch("https://api.razorpay.com/v1/orders", {
+          method: "POST",
+          headers: {
+            "Authorization": `Basic ${btoa(`${razorpayKeyId}:${razorpayKeySecret}`)}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            amount: finalAmountInr * 100,
+            currency: "INR",
+            receipt,
+            notes: {
+              student_email: email,
+              plan: "ebook",
+              product_type: "ebook",
+              ebook_id: ebookId,
+              ebook_title: String(ebookRow.title || ""),
+              ebook_price_inr: String(amountInr || ""),
+              coupon_code: coupon ? String(coupon.code || "") : "",
+              coupon_discount_inr: String(discountInr || ""),
+            },
+          }),
+        });
+
+        const order = await orderResponse.json().catch(() => ({}));
+        if (!orderResponse.ok) {
+          return json({ error: order?.error?.description || "Razorpay order could not be created" }, 400);
+        }
+
+        const { error: transactionError } = await adminClient.from("payment_transactions").insert({
+          student_email: email,
+          plan: "ebook",
+          amount_inr: finalAmountInr,
+          original_amount_inr: amountInr,
+          discount_inr: discountInr,
+          coupon_id: coupon?.id || null,
+          coupon_code: coupon?.code || null,
+          currency: "INR",
+          status: "created",
+          razorpay_order_id: order.id,
+          ebook_id: ebookId,
+        });
+        if (transactionError) {
+          return json({ error: transactionError.message }, 400);
+        }
+
+        return json({
+          order_id: order.id,
+          amount: order.amount,
+          currency: order.currency,
+          key_id: razorpayKeyId,
+          plan: "ebook",
+          product_type: "ebook",
+          ebook_id: ebookId,
+          original_amount_inr: amountInr,
+          discount_inr: discountInr,
+          final_amount_inr: finalAmountInr,
+          coupon: coupon ? {
+            code: coupon.code,
+            title: coupon.title,
+            discount_type: coupon.discount_type,
+            discount_value: coupon.discount_value,
+          } : null,
+        });
+      }
+
       if (plan !== "pro") {
         return json({ error: "Unsupported payment plan" }, 400);
       }
@@ -222,7 +424,7 @@ Deno.serve(async (req) => {
       if (!folderRow) return json({ error: "Course folder was not found" }, 400);
 
       const amountInr = getCourseAmountInr(folderRow, toInt(getEnv("RAZORPAY_PLAN_AMOUNT_INR"), 99));
-      const couponValidation: any = await validateCoupon(adminClient, couponCode, folderId, amountInr);
+      const couponValidation: any = await validateCoupon(adminClient, couponCode, folderId, null, amountInr, "course");
       if ("error" in couponValidation && couponValidation.error) {
         return json({ error: couponValidation.error }, 400);
       }
@@ -339,7 +541,7 @@ Deno.serve(async (req) => {
 
       const { data: transaction, error: transactionLookupError } = await adminClient
         .from("payment_transactions")
-        .select("id, student_email, status, folder_id, razorpay_order_id, coupon_id")
+        .select("id, student_email, status, folder_id, ebook_id, razorpay_order_id, coupon_id, amount_inr")
         .eq("razorpay_order_id", orderId)
         .maybeSingle();
 
@@ -350,7 +552,24 @@ Deno.serve(async (req) => {
         return json({ error: "Payment order does not belong to this account" }, 403);
       }
       if (transaction.status === "paid") {
-        if (transaction.folder_id) {
+        if (transaction.ebook_id) {
+          await adminClient
+            .from("ebook_purchases")
+            .upsert(
+              {
+                student_email: email,
+                ebook_id: transaction.ebook_id,
+                status: "active",
+                download_password: email,
+                generation_status: "pending",
+                generation_error: null,
+                razorpay_order_id: orderId,
+                razorpay_payment_id: paymentId,
+              },
+              { onConflict: "student_email,ebook_id" },
+            );
+          return json({ ok: true, already_verified: true, ebook_id: transaction.ebook_id });
+        } else if (transaction.folder_id) {
           await adminClient
             .from("course_purchases")
             .upsert(
@@ -364,6 +583,13 @@ Deno.serve(async (req) => {
               { onConflict: "student_email,folder_id" },
             );
         }
+        await sendPurchaseEmailSafely(adminClient, {
+          email,
+          folderId: transaction.folder_id,
+          amountInr: transaction.amount_inr,
+          orderId,
+          paymentId,
+        });
         return json({ ok: true, already_verified: true, folder_id: transaction.folder_id });
       }
 
@@ -403,6 +629,30 @@ Deno.serve(async (req) => {
           .from("coupon_codes")
           .update({ used_count: Number(couponRow?.used_count || 0) + 1, updated_at: new Date().toISOString() })
           .eq("id", transaction.coupon_id);
+      }
+
+      if (transaction.ebook_id) {
+        const { error: purchaseError } = await adminClient
+          .from("ebook_purchases")
+          .upsert(
+            {
+              student_email: email,
+              ebook_id: transaction.ebook_id,
+              status: "active",
+              download_password: email,
+              generation_status: "pending",
+              generation_error: null,
+              razorpay_order_id: orderId,
+              razorpay_payment_id: paymentId,
+            },
+            { onConflict: "student_email,ebook_id" },
+          );
+
+        if (purchaseError) {
+          return json({ error: purchaseError.message }, 400);
+        }
+
+        return json({ ok: true, ebook_id: transaction.ebook_id });
       }
 
       const { data: existingProfile, error: lookupError } = await adminClient
@@ -459,6 +709,14 @@ Deno.serve(async (req) => {
           return json({ error: purchaseError.message }, 400);
         }
       }
+
+      await sendPurchaseEmailSafely(adminClient, {
+        email,
+        folderId: transaction.folder_id,
+        amountInr: transaction.amount_inr,
+        orderId,
+        paymentId,
+      });
 
       return json({ ok: true, profile, folder_id: transaction.folder_id });
     }

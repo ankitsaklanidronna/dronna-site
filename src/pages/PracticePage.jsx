@@ -111,8 +111,7 @@ export function PracticePage() {
 
   const isPaidByFolderPath = (folderId) => {
     const path = getFolderPath(folderId);
-    // Root folders are categories. Paid access starts from subfolders/material folders.
-    return path.some((folder, index) => index > 0 && Boolean(folder.is_paid));
+    return path.some((folder) => Boolean(folder.is_paid));
   };
 
   const isSetAccessPaid = (set) => {
@@ -127,7 +126,7 @@ export function PracticePage() {
 
   const getPaidCourseFolderForFolder = (folderId) => {
     const path = getFolderPath(folderId);
-    return path.find((folder, index) => index > 0 && Boolean(folder.is_paid)) || null;
+    return path.find((folder) => Boolean(folder.is_paid)) || null;
   };
 
   const hasSetAccess = (set) => {
@@ -304,6 +303,10 @@ export function PracticePage() {
           if (verified.folder_id) {
             setPurchasedFolderIds((current) => Array.from(new Set([...current, verified.folder_id])));
           }
+          await supabase.sendCoursePurchaseEmail({
+            razorpay_order_id: response.razorpay_order_id,
+            razorpay_payment_id: response.razorpay_payment_id
+          }, user.access_token);
           setPaymentStatus({ loadingSetId: "", message: "Payment successful. Course access activated.", type: "success" });
           navigate("/dashboard");
         },
@@ -332,7 +335,7 @@ export function PracticePage() {
   return (
     <div className="page bg-[#FDF8F3] min-h-screen">
       <Navbar />
-      <div className="max-w-6xl mx-auto px-4 py-8">
+      <div className="max-w-6xl mx-auto px-4 py-6 sm:py-8">
         {loadWarning && (
           <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">
             {loadWarning} Some counts may show -- until the connection recovers.
@@ -365,7 +368,7 @@ export function PracticePage() {
         {/* Courses */}
         {visibleFolders.length > 0 && (
           <div className="mb-8">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 fade-in">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 fade-in">
               {visibleFolders.map(folder => {
                 const subCount = dbFolders.filter(f => f.parent_id === folder.id).length;
                 const setCount = countSetsInFolder(folder.id);
@@ -398,10 +401,10 @@ export function PracticePage() {
                       setFolderStack([...folderStack, folder]);
                       navigate(`/practice?${isMyCourseMode ? "mine=1&" : ""}folder=${folder.id}`);
                     }}
-                    className="group flex min-h-[500px] cursor-pointer flex-col overflow-hidden rounded-lg border bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
+                    className="group flex min-h-[430px] cursor-pointer flex-col overflow-hidden rounded-lg border bg-white shadow-sm transition-all duration-300 hover:shadow-xl sm:min-h-[500px] sm:hover:-translate-y-1"
                     style={{borderColor:theme.line}}
                   >
-                    <div className="relative min-h-[150px] p-5 text-white" style={{background:theme.cover}}>
+                    <div className="relative min-h-[128px] p-4 text-white sm:min-h-[150px] sm:p-5" style={{background:theme.cover}}>
                       <div className="flex items-start justify-between gap-3">
                         <span className="rounded-full bg-white/16 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] ring-1 ring-white/25">
                           {folderLocked ? "Locked Course" : folderIsPaidMaterial ? "Active Course" : "Course Category"}
@@ -412,13 +415,13 @@ export function PracticePage() {
                           </span>
                         </span>
                       </div>
-                      <div className="mt-8">
+                      <div className="mt-6 sm:mt-8">
                         <p className="text-xs font-black uppercase tracking-[0.22em] text-white/75">Dronna Course</p>
-                        <h3 className="mt-2 text-2xl font-black leading-tight text-white">{folder.name}</h3>
+                        <h3 className="mt-2 text-xl sm:text-2xl font-black leading-tight text-white">{folder.name}</h3>
                       </div>
                     </div>
 
-                    <div className="flex flex-1 flex-col p-4">
+                    <div className="flex flex-1 flex-col p-3.5 sm:p-4">
                       <div className="grid grid-cols-2 gap-2 text-center">
                         <div className="rounded-lg px-2 py-3" style={{background:theme.soft}}>
                           <span className="block text-xl font-black" style={{color:theme.ink}}>{formatCount(setCount)}</span>
@@ -552,6 +555,7 @@ export function PracticePage() {
                 const isLocked = setAccessPaid && !hasSetAccess(set);
                 const isPaymentLoading = paymentStatus.loadingSetId === set.id;
                 const courseFolder = getPaidCourseFolderForFolder(set.folder_id);
+                const showSetPrice = setAccessPaid && !courseFolder;
                 const pricing = getCoursePricing(courseFolder || {});
                 return (
                 <div key={set.id} className="card relative overflow-hidden group">
@@ -562,7 +566,7 @@ export function PracticePage() {
                   <div className="flex gap-4 text-xs text-gray-500 mb-6 font-medium">
                     <span> {formatCount(getSetQuestionCount(set))} questions</span>
                     <span> {set.time_limit_minutes} mins</span>
-                    {setAccessPaid && <span> Rs {pricing.salePrice}</span>}
+                    {showSetPrice && <span> Rs {pricing.salePrice}</span>}
                   </div>
                   {setAccessPaid && (
                     <div className="mb-4 rounded-xl border border-purple-100 bg-purple-50 px-3 py-2 text-xs font-black uppercase tracking-wide text-purple-700">
