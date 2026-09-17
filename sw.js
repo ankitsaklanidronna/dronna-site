@@ -1,4 +1,4 @@
-const CACHE_PREFIX = 'dronna-pwa-v4';
+const CACHE_PREFIX = 'dronna-pwa-v5';
 const SHELL_CACHE = `${CACHE_PREFIX}-shell`;
 const RUNTIME_CACHE = `${CACHE_PREFIX}-runtime`;
 const IMAGE_CACHE = `${CACHE_PREFIX}-images`;
@@ -25,8 +25,6 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(SHELL_CACHE)
       .then((cache) => cache.addAll(APP_SHELL_URLS.map((url) => new Request(url, { cache: 'reload' }))))
-      .then(() => self.skipWaiting())
-      .catch(() => self.skipWaiting())
   );
 });
 
